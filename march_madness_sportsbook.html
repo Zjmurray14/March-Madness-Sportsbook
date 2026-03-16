@@ -179,6 +179,26 @@
     .sidebar { width: 100%; min-width: unset; padding: 0 16px 24px; position: static; height: auto; }
     .main { padding: 16px; max-width: 100%; }
   }
+
+  /* KenPom stats row */
+  .stats-row { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: start; gap: 8px; margin-bottom: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 0.5px solid var(--border); }
+  .stat-block { display: flex; flex-direction: column; gap: 4px; }
+  .stat-block.right { align-items: flex-end; }
+  .stat-team-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .stat-grid { display: grid; grid-template-columns: auto auto; gap: 2px 10px; }
+  .stat-block.right .stat-grid { direction: rtl; }
+  .stat-label { font-size: 10px; color: var(--faint); }
+  .stat-val { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .stat-val.good { color: var(--green); }
+  .stat-val.bad  { color: var(--red); }
+  .stat-sep { text-align: center; font-size: 9px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 18px; }
+  .stats-source { font-size: 10px; color: var(--faint); text-align: center; margin-top: 3px; }
+
+  /* Injury badges */
+  .injury-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+  .inj-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+  .inj-out { background: rgba(242,92,92,0.12); color: var(--red); border: 0.5px solid rgba(242,92,92,0.35); }
+  .inj-q   { background: var(--amber-dim); color: var(--amber); border: 0.5px solid var(--amber-border); }
 </style>
 </head>
 <body>
@@ -253,6 +273,244 @@ const API_KEY = '128b7d366566d73648d5b5a3a476fa99';
 let bets = {};
 let currentTab = 'games';
 
+// ─── KenPom-style efficiency ratings ─────────────────────────────────────────
+// AdjO: Adjusted Offensive Efficiency (pts per 100 possessions, higher = better)
+// AdjD: Adjusted Defensive Efficiency (pts per 100 possessions, LOWER = better)
+// Tempo: Adjusted possessions per 40 min
+const KENPOM = {
+  'Auburn Tigers':                  { adjO: 123.1, adjD: 88.0, tempo: 72.4 },
+  'Duke Blue Devils':               { adjO: 121.6, adjD: 88.8, tempo: 68.1 },
+  'Houston Cougars':                { adjO: 117.4, adjD: 85.2, tempo: 64.8 },
+  'Florida Gators':                 { adjO: 120.2, adjD: 89.5, tempo: 70.1 },
+  'Tennessee Volunteers':           { adjO: 118.8, adjD: 86.4, tempo: 65.7 },
+  'Kansas Jayhawks':                { adjO: 119.3, adjD: 90.1, tempo: 68.9 },
+  'Kentucky Wildcats':              { adjO: 118.5, adjD: 91.2, tempo: 69.4 },
+  'Michigan State Spartans':        { adjO: 116.7, adjD: 89.8, tempo: 66.2 },
+  'Gonzaga Bulldogs':               { adjO: 122.4, adjD: 92.6, tempo: 71.3 },
+  'Arizona Wildcats':               { adjO: 119.8, adjD: 91.8, tempo: 70.5 },
+  'Marquette Golden Eagles':        { adjO: 117.9, adjD: 91.4, tempo: 67.6 },
+  'Purdue Boilermakers':            { adjO: 118.1, adjD: 93.2, tempo: 63.4 },
+  'Texas Longhorns':                { adjO: 116.4, adjD: 90.7, tempo: 66.8 },
+  'Wisconsin Badgers':              { adjO: 114.2, adjD: 91.1, tempo: 61.8 },
+  'Baylor Bears':                   { adjO: 116.8, adjD: 90.9, tempo: 67.2 },
+  'Alabama Crimson Tide':           { adjO: 120.5, adjD: 94.1, tempo: 74.8 },
+  'Iowa State Cyclones':            { adjO: 117.3, adjD: 89.6, tempo: 65.4 },
+  'Creighton Bluejays':             { adjO: 118.6, adjD: 92.8, tempo: 66.1 },
+  'Illinois Fighting Illini':       { adjO: 115.9, adjD: 91.5, tempo: 67.4 },
+  'UCLA Bruins':                    { adjO: 116.2, adjD: 92.3, tempo: 66.7 },
+  'North Carolina Tar Heels':       { adjO: 119.7, adjD: 94.8, tempo: 71.6 },
+  'Indiana Hoosiers':               { adjO: 114.8, adjD: 92.6, tempo: 68.3 },
+  'Missouri Tigers':                { adjO: 115.4, adjD: 93.1, tempo: 69.8 },
+  'Mississippi State Bulldogs':     { adjO: 113.6, adjD: 93.8, tempo: 67.9 },
+  'Texas A&M Aggies':               { adjO: 114.1, adjD: 92.4, tempo: 66.5 },
+  'Virginia Cavaliers':             { adjO: 113.2, adjD: 89.4, tempo: 58.6 },
+  'San Diego State Aztecs':         { adjO: 111.8, adjD: 90.8, tempo: 63.2 },
+  "Saint Mary's Gaels":             { adjO: 114.6, adjD: 91.6, tempo: 63.8 },
+  'Dayton Flyers':                  { adjO: 113.4, adjD: 92.1, tempo: 65.1 },
+  'BYU Cougars':                    { adjO: 114.9, adjD: 93.7, tempo: 67.3 },
+  'Utah State Aggies':              { adjO: 113.8, adjD: 91.3, tempo: 64.6 },
+  'VCU Rams':                       { adjO: 110.6, adjD: 91.7, tempo: 69.4 },
+  'Drake Bulldogs':                 { adjO: 112.4, adjD: 92.9, tempo: 64.2 },
+  'Clemson Tigers':                 { adjO: 113.7, adjD: 91.8, tempo: 65.9 },
+  'Oklahoma Sooners':               { adjO: 114.3, adjD: 93.4, tempo: 68.7 },
+  'TCU Horned Frogs':               { adjO: 113.1, adjD: 93.6, tempo: 67.1 },
+  'Pittsburgh Panthers':            { adjO: 112.8, adjD: 92.7, tempo: 66.4 },
+  'Xavier Musketeers':              { adjO: 113.5, adjD: 94.2, tempo: 67.8 },
+  'Nebraska Cornhuskers':           { adjO: 113.9, adjD: 93.5, tempo: 68.1 },
+  'Mississippi Rebels':             { adjO: 114.7, adjD: 94.6, tempo: 70.2 },
+  'Florida Atlantic Owls':          { adjO: 111.3, adjD: 92.8, tempo: 64.9 },
+  'New Mexico Lobos':               { adjO: 112.6, adjD: 93.2, tempo: 66.8 },
+  'Colorado State Rams':            { adjO: 111.8, adjD: 92.4, tempo: 65.3 },
+  'Utah Utes':                      { adjO: 112.2, adjD: 93.8, tempo: 66.6 },
+  'South Carolina Gamecocks':       { adjO: 112.9, adjD: 91.6, tempo: 67.4 },
+  'Memphis Tigers':                 { adjO: 113.6, adjD: 94.5, tempo: 71.8 },
+  'Cincinnati Bearcats':            { adjO: 111.4, adjD: 92.1, tempo: 65.7 },
+  'West Virginia Mountaineers':     { adjO: 111.7, adjD: 93.4, tempo: 66.9 },
+  'Louisville Cardinals':           { adjO: 112.3, adjD: 93.7, tempo: 67.2 },
+  'Providence Friars':              { adjO: 111.6, adjD: 93.1, tempo: 64.8 },
+  'Wake Forest Demon Deacons':      { adjO: 113.2, adjD: 95.1, tempo: 68.4 },
+  'South Dakota State Jackrabbits': { adjO: 114.2, adjD: 95.8, tempo: 68.7 },
+  'Oral Roberts Golden Eagles':     { adjO: 112.8, adjD: 97.4, tempo: 70.2 },
+  'James Madison Dukes':            { adjO: 111.4, adjD: 94.6, tempo: 67.1 },
+  'Liberty Flames':                 { adjO: 110.8, adjD: 95.2, tempo: 65.4 },
+  'McNeese Cowboys':                { adjO: 109.6, adjD: 96.8, tempo: 66.8 },
+  'Montana State Bobcats':          { adjO: 108.4, adjD: 97.1, tempo: 64.3 },
+  'Colgate Raiders':                { adjO: 113.6, adjD: 96.4, tempo: 66.2 },
+  'UC San Diego Tritons':           { adjO: 110.2, adjD: 97.6, tempo: 65.9 },
+  'Norfolk State Spartans':         { adjO: 106.4, adjD: 99.8, tempo: 67.4 },
+  'Wagner Seahawks':                { adjO: 105.8, adjD: 101.2, tempo: 68.1 },
+  'American Eagles':                { adjO: 106.8, adjD: 100.6, tempo: 66.2 },
+};
+
+// ─── 2026 NCAA Tournament Teams (68-team field) ───────────────────────────────
+// Source: 2026 Selection Sunday bracket (March 15, 2026)
+// Used to filter API results so only tournament games are shown.
+// Includes alternate name variants to handle Odds API naming differences.
+const NCAA_TOURNAMENT_TEAMS_2026 = new Set([
+  // EAST REGION
+  'Duke Blue Devils',
+  'UConn Huskies', 'Connecticut Huskies',
+  'Michigan State Spartans',
+  'Kansas Jayhawks',
+  "St. John's Red Storm", "St John's Red Storm",
+  'Louisville Cardinals',
+  'UCLA Bruins',
+  'Ohio State Buckeyes',
+  'TCU Horned Frogs',
+  'UCF Knights', 'Central Florida Knights',
+  'South Florida Bulls',
+  'Northern Iowa Panthers',
+  'Cal Baptist Lancers', 'California Baptist Lancers',
+  'North Dakota State Bison',
+  'Furman Paladins',
+  'Siena Saints',
+  // WEST REGION
+  'Arizona Wildcats',
+  'Purdue Boilermakers',
+  'Gonzaga Bulldogs',
+  'Arkansas Razorbacks',
+  'Wisconsin Badgers',
+  'BYU Cougars',
+  'Miami Hurricanes',
+  'Villanova Wildcats',
+  'Utah State Aggies',
+  'Missouri Tigers',
+  'Texas Longhorns',          // West 11 First Four
+  'NC State Wolfpack',        // West 11 First Four
+  'High Point Panthers',
+  'Hawaii Rainbow Warriors',
+  'Kennesaw State Owls',
+  'Queens Royals', "Queens University Royals",
+  'LIU Sharks', 'Long Island University Sharks',
+  // MIDWEST REGION
+  'Michigan Wolverines',
+  'Iowa State Cyclones',
+  'Virginia Cavaliers',
+  'Alabama Crimson Tide',
+  'Texas Tech Red Raiders',
+  'Tennessee Volunteers',
+  'Kentucky Wildcats',
+  'Georgia Bulldogs',
+  'Saint Louis Billikens',
+  'Santa Clara Broncos',
+  'Miami (OH) RedHawks', 'Miami Ohio RedHawks', 'Miami (Ohio) RedHawks',  // Midwest 11 First Four
+  'SMU Mustangs', 'Southern Methodist Mustangs',                          // Midwest 11 First Four
+  'Akron Zips',
+  'Hofstra Pride',
+  'Wright State Raiders',
+  'Tennessee State Tigers',
+  'UMBC Retrievers', 'Maryland-Baltimore County Retrievers',  // Midwest 16 First Four
+  'Howard Bison',                                             // Midwest 16 First Four
+  // SOUTH REGION
+  'Florida Gators',
+  'Houston Cougars',
+  'Illinois Fighting Illini',
+  'Nebraska Cornhuskers',
+  'Vanderbilt Commodores',
+  'North Carolina Tar Heels',
+  "Saint Mary's Gaels",
+  'Clemson Tigers',
+  'Iowa Hawkeyes',
+  'Texas A&M Aggies',
+  'VCU Rams',
+  'McNeese State Cowboys', 'McNeese Cowboys',
+  'Troy Trojans',
+  'Penn Quakers', 'Pennsylvania Quakers',
+  'Idaho Vandals',
+  'Prairie View A&M Panthers',  // South 16 First Four
+  'Lehigh Mountain Hawks',      // South 16 First Four
+]);
+
+// Tournament window: First Four (Mar 17) through Championship (Apr 6, 2026)
+const TOURNAMENT_START = new Date('2026-03-17T00:00:00Z');
+const TOURNAMENT_END   = new Date('2026-04-07T00:00:00Z');
+
+function isTournamentGame(homeTeam, awayTeam) {
+  return NCAA_TOURNAMENT_TEAMS_2026.has(homeTeam) && NCAA_TOURNAMENT_TEAMS_2026.has(awayTeam);
+}
+
+function inTournamentWindow(commenceTime) {
+  const d = new Date(commenceTime);
+  return d >= TOURNAMENT_START && d < TOURNAMENT_END;
+}
+
+function getKenPom(teamName) {
+  if (KENPOM[teamName]) return { ...KENPOM[teamName] };
+  const lower = teamName.toLowerCase();
+  for (const [key, val] of Object.entries(KENPOM)) {
+    const keyLower = key.toLowerCase();
+    const school = keyLower.split(' ')[0];
+    if (lower.includes(school) || keyLower.includes(lower.split(' ')[0])) {
+      return { ...val };
+    }
+  }
+  return null;
+}
+
+// ─── ESPN Injury Fetching ─────────────────────────────────────────────────────
+let espnTeamMap = null;
+const injuryCache = {};
+
+async function loadESPNTeamMap() {
+  if (espnTeamMap) return;
+  try {
+    const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000');
+    if (!res.ok) { espnTeamMap = {}; return; }
+    const data = await res.json();
+    espnTeamMap = {};
+    for (const entry of (data.sports?.[0]?.leagues?.[0]?.teams || [])) {
+      const t = entry.team;
+      espnTeamMap[t.displayName]      = t.id;
+      espnTeamMap[t.shortDisplayName] = t.id;
+      espnTeamMap[t.name]             = t.id;
+    }
+  } catch { espnTeamMap = {}; }
+}
+
+function findESPNId(teamName) {
+  if (!espnTeamMap) return null;
+  if (espnTeamMap[teamName]) return espnTeamMap[teamName];
+  const lower = teamName.toLowerCase();
+  for (const [key, id] of Object.entries(espnTeamMap)) {
+    if (key.toLowerCase().includes(lower.split(' ')[0]) ||
+        lower.includes(key.toLowerCase().split(' ')[0])) {
+      return id;
+    }
+  }
+  return null;
+}
+
+async function fetchInjuries(teamName) {
+  if (injuryCache[teamName] !== undefined) return injuryCache[teamName];
+  injuryCache[teamName] = [];
+  try {
+    await loadESPNTeamMap();
+    const id = findESPNId(teamName);
+    if (!id) return [];
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}/injuries`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const injuries = (data.injuries || []).map(i => ({
+      player: i.athlete?.displayName,
+      status: i.status || 'Questionable',
+      type:   i.details?.type || '',
+    })).filter(i => i.player);
+    injuryCache[teamName] = injuries;
+    return injuries;
+  } catch { return []; }
+}
+
+function calcInjurySeverity(injuries) {
+  return injuries.reduce((sum, inj) => {
+    const s = (inj.status || '').toLowerCase();
+    if (s.includes('out'))         return sum + 1.5;
+    if (s.includes('doubtful'))    return sum + 1.0;
+    if (s.includes('questionable')) return sum + 0.5;
+    return sum;
+  }, 0);
+}
+
+// ─── Odds helpers ─────────────────────────────────────────────────────────────
 function mlToDecimal(ml) {
   const v = parseInt(String(ml).replace('+',''));
   return v > 0 ? (v/100)+1 : (100/Math.abs(v))+1;
@@ -266,80 +524,165 @@ function winProb(mlHome, mlAway) {
   return { home: Math.round(pH/t*100), away: Math.round(pA/t*100) };
 }
 
-function genPick(game) {
+// ─── Pick Engine ──────────────────────────────────────────────────────────────
+function genPick(game, homeInjuries = [], awayInjuries = []) {
   const { home, away, homeML, awayML, spread, total } = game;
-  const prob = winProb(homeML, awayML);
-  const favIsHome = homeML < awayML;
-  const favML = favIsHome ? homeML : awayML;
-  const spreadAbs = Math.abs(spread || 0);
-  let tier, conf, pick, pickLabel, reason;
+  const oddsProb   = winProb(homeML, awayML);
+  const homeKP     = getKenPom(home);
+  const awayKP     = getKenPom(away);
+  const homeInjSev = calcInjurySeverity(homeInjuries);
+  const awayInjSev = calcInjurySeverity(awayInjuries);
 
-  if (Math.max(prob.home, prob.away) > 74) {
-    tier = 'strong'; conf = Math.max(prob.home, prob.away);
-    if (spreadAbs > 15) {
-      // Dog spread at -110 — always within the -200 threshold
+  let blendedProb = { ...oddsProb };
+  let modelData   = null;
+
+  if (homeKP && awayKP) {
+    // Reduce offensive efficiency based on injury severity
+    const hAdjO = homeKP.adjO - homeInjSev * 1.5;
+    const aAdjO = awayKP.adjO - awayInjSev * 1.5;
+
+    const homeEM = hAdjO   - homeKP.adjD;
+    const awayEM = aAdjO   - awayKP.adjD;
+    const emDiff = homeEM  - awayEM; // positive = home team stronger
+
+    const avgTempo = (homeKP.tempo + awayKP.tempo) / 2;
+
+    // 3 EM pts ≈ 10% win-probability shift from 50% (neutral site)
+    const kpWinHome = Math.max(10, Math.min(90, 50 + (emDiff / 3) * 10));
+
+    // Blend: 60% KenPom model, 40% market odds
+    const blendedHome = Math.round(kpWinHome * 0.60 + oddsProb.home * 0.40);
+    blendedProb = { home: blendedHome, away: 100 - blendedHome };
+
+    modelData = {
+      homeEM:   homeEM.toFixed(1),   awayEM:   awayEM.toFixed(1),
+      hAdjO:    hAdjO.toFixed(1),    aAdjO:    aAdjO.toFixed(1),
+      homeAdjD: homeKP.adjD.toFixed(1), awayAdjD: awayKP.adjD.toFixed(1),
+      homeTempo: homeKP.tempo.toFixed(1), awayTempo: awayKP.tempo.toFixed(1),
+      avgTempo: avgTempo.toFixed(1),
+      kpWinHome: Math.round(kpWinHome),
+    };
+  }
+
+  const favIsHome = blendedProb.home > blendedProb.away;
+  const conf      = Math.max(blendedProb.home, blendedProb.away);
+  const spreadAbs = Math.abs(spread || 0);
+  let tier, pick, pickLabel, reason;
+
+  if (conf > 72) {
+    tier = 'strong';
+    if (spreadAbs > 14) {
       const dog = favIsHome ? away : home;
-      pick = favIsHome ? 'away-spread' : 'home-spread';
+      pick      = favIsHome ? 'away-spread' : 'home-spread';
       pickLabel = dog + ' +' + spreadAbs.toFixed(1);
-      reason = 'Heavy favorite, but ' + spreadAbs.toFixed(1) + '+ point spreads rarely cover in tournament play. Take the points.';
+      reason    = 'Large spread — tournament underdogs cover at a high rate. Take the points.';
     } else {
-      // Favorite ML — only recommend if odds are -200 or better
-      if (favML < -200) return null;
-      const fav = favIsHome ? home : away;
-      pick = favIsHome ? 'home-ml' : 'away-ml';
+      const fav   = favIsHome ? home : away;
+      const favML = favIsHome ? homeML : awayML;
+      if (favML < -220) return null;
+      pick      = favIsHome ? 'home-ml' : 'away-ml';
       pickLabel = fav + ' ML';
-      reason = fav + ' has a ' + conf + '% implied win probability — strong moneyline value at these odds.';
+      reason    = `${conf}% blended win probability${modelData ? ' (KenPom + odds)' : ''} — strong edge at these odds.`;
     }
-  } else if (Math.max(prob.home, prob.away) > 57) {
-    tier = 'lean'; conf = Math.max(prob.home, prob.away);
+  } else if (conf > 57) {
+    tier = 'lean';
     if (spreadAbs <= 7) {
-      // Spread at -110 — always within threshold
       const fav = favIsHome ? home : away;
-      pick = favIsHome ? 'home-spread' : 'away-spread';
+      pick      = favIsHome ? 'home-spread' : 'away-spread';
       pickLabel = fav + ' -' + spreadAbs.toFixed(1);
-      reason = fav + ' is the clear favorite at ' + conf + '% implied probability. The spread is manageable — back them to cover.';
+      reason    = `${conf}% win probability — manageable spread, back the stronger team.`;
     } else {
-      // Dog spread at -110 — always within threshold
       const dog = favIsHome ? away : home;
-      pick = favIsHome ? 'away-spread' : 'home-spread';
+      pick      = favIsHome ? 'away-spread' : 'home-spread';
       pickLabel = dog + ' +' + spreadAbs.toFixed(1);
-      reason = 'Wide spread for a competitive matchup. The underdog getting ' + spreadAbs.toFixed(1) + ' points offers solid value.';
+      reason    = `Getting ${spreadAbs.toFixed(1)} pts in a competitive matchup offers solid value.`;
     }
   } else {
-    // Near coin-flip — no statistical edge, skip recommendation
     return null;
+  }
+
+  if (modelData) {
+    const t = parseFloat(modelData.avgTempo);
+    if (t > 72)      reason += ' Fast pace raises variance — keep stakes modest.';
+    else if (t < 64) reason += ' Slow pace lowers variance — more predictable outcome.';
+    if (homeInjSev > 1 || awayInjSev > 1) reason += ' Injury impact factored in.';
   }
 
   const totalPick = total
     ? (total > 155
-      ? { side:'over', conf:58, reason:'High total implies an up-tempo game — lean over.' }
-      : { side:'under', conf:61, reason:'Lower total suggests a defensive battle — lean under.' })
+      ? { side: 'over',  conf: 58, reason: 'High total — up-tempo game, lean Over.' }
+      : { side: 'under', conf: 61, reason: 'Lower total — defensive battle, lean Under.' })
     : null;
 
-  return { tier, conf, pick, pickLabel, reason, totalPick };
+  return { tier, conf, pick, pickLabel, reason, totalPick, modelData };
 }
 
-function renderGameCard(game) {
+// ─── Game Card ────────────────────────────────────────────────────────────────
+function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
   const { id, home, away, homeML, awayML, spread, total, commence } = game;
   const dt = new Date(commence);
   const timeStr = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ', ' +
     dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
-  const pick = genPick(game);
 
-  const chipCls = pick ? (pick.tier==='strong' ? 'chip-green' : 'chip-blue') : 'chip-gray';
-  const chipLbl = pick ? (pick.tier==='strong' ? 'Strong pick' : 'Lean') : 'No pick';
-  const confColor = pick?.tier==='strong' ? 'var(--green)' : 'var(--blue)';
+  const pick       = genPick(game, homeInjuries, awayInjuries);
+  const homeKP     = getKenPom(home);
+  const awayKP     = getKenPom(away);
+  const chipCls    = pick ? (pick.tier==='strong' ? 'chip-green' : 'chip-blue') : 'chip-gray';
+  const chipLbl    = pick ? (pick.tier==='strong' ? 'Strong pick' : 'Lean') : 'No pick';
+  const confColor  = pick?.tier==='strong' ? 'var(--green)' : 'var(--blue)';
 
   const hSpId = id+'-h-sp', aSpId = id+'-a-sp';
   const hMLId = id+'-h-ml', aMLId = id+'-a-ml';
-  const ovId = id+'-ov', unId = id+'-un';
+  const ovId  = id+'-ov',   unId  = id+'-un';
 
   const homeSpreadVal = spread != null ? (spread > 0 ? '+'+spread.toFixed(1) : spread.toFixed(1)) : null;
   const awaySpreadVal = spread != null ? (spread > 0 ? '-'+spread.toFixed(1) : '+'+Math.abs(spread).toFixed(1)) : null;
 
   const isHSp = pick?.pick==='home-spread', isASp = pick?.pick==='away-spread';
-  const isHML = pick?.pick==='home-ml', isAML = pick?.pick==='away-ml';
-  const isOv = pick?.totalPick?.side==='over';
+  const isHML = pick?.pick==='home-ml',     isAML = pick?.pick==='away-ml';
+  const isOv  = pick?.totalPick?.side==='over';
+
+  // KenPom stats panel
+  const statsHtml = homeKP && awayKP ? (() => {
+    const awayNet = (awayKP.adjO - awayKP.adjD).toFixed(1);
+    const homeNet = (homeKP.adjO - homeKP.adjD).toFixed(1);
+    const awayNetCls = parseFloat(awayNet) >= 20 ? 'good' : parseFloat(awayNet) >= 15 ? '' : 'bad';
+    const homeNetCls = parseFloat(homeNet) >= 20 ? 'good' : parseFloat(homeNet) >= 15 ? '' : 'bad';
+    return `<div class="stats-row">
+      <div class="stat-block">
+        <div class="stat-team-label">${away}</div>
+        <div class="stat-grid">
+          <span class="stat-label">AdjO</span><span class="stat-val">${awayKP.adjO.toFixed(1)}</span>
+          <span class="stat-label">AdjD</span><span class="stat-val">${awayKP.adjD.toFixed(1)}</span>
+          <span class="stat-label">Tempo</span><span class="stat-val">${awayKP.tempo.toFixed(1)}</span>
+          <span class="stat-label">Net</span><span class="stat-val ${awayNetCls}">${awayNet}</span>
+        </div>
+      </div>
+      <div class="stat-sep">KenPom</div>
+      <div class="stat-block right">
+        <div class="stat-team-label">${home}</div>
+        <div class="stat-grid">
+          <span class="stat-label">AdjO</span><span class="stat-val">${homeKP.adjO.toFixed(1)}</span>
+          <span class="stat-label">AdjD</span><span class="stat-val">${homeKP.adjD.toFixed(1)}</span>
+          <span class="stat-label">Tempo</span><span class="stat-val">${homeKP.tempo.toFixed(1)}</span>
+          <span class="stat-label">Net</span><span class="stat-val ${homeNetCls}">${homeNet}</span>
+        </div>
+      </div>
+    </div>`;
+  })() : '';
+
+  // Injury report panel
+  const allInjuries = [
+    ...awayInjuries.map(i => ({ ...i, team: away })),
+    ...homeInjuries.map(i => ({ ...i, team: home })),
+  ];
+  const injuryHtml = allInjuries.length ? `<div class="injury-row">
+    ${allInjuries.map(i => {
+      const isOut = (i.status || '').toLowerCase().includes('out') ||
+                    (i.status || '').toLowerCase().includes('doubtful');
+      return `<span class="inj-badge ${isOut ? 'inj-out' : 'inj-q'}">${i.player} · ${i.status}</span>`;
+    }).join('')}
+  </div>` : '';
 
   return `<div class="game-card">
     <div class="game-meta">
@@ -360,8 +703,11 @@ function renderGameCard(game) {
     </div>` : `
     <div class="rec-box rec-toss" style="margin-bottom:14px">
       <div class="rec-label toss">No recommendation</div>
-      <div class="rec-text">This matchup lacks a clear statistical edge — odds are too short or the lines are too close to identify value. Sit this one out.</div>
+      <div class="rec-text">This matchup lacks a clear statistical edge. Sit this one out.</div>
     </div>`}
+
+    ${statsHtml}
+    ${injuryHtml}
 
     <div class="matchup-grid">
       <div class="team-col">
@@ -433,7 +779,7 @@ async function fetchOdds() {
     const url = `https://api.the-odds-api.com/v4/sports/basketball_ncaab/odds/?apiKey=${API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american&bookmakers=draftkings,fanduel,betmgm`;
     const res = await fetch(url);
     const remaining = res.headers.get('x-requests-remaining');
-    const used = res.headers.get('x-requests-used');
+    const used      = res.headers.get('x-requests-used');
     if (remaining) document.getElementById('quota-bar').textContent = `API quota: ${remaining} calls remaining · ${used} used`;
 
     if (!res.ok) {
@@ -442,18 +788,25 @@ async function fetchOdds() {
     }
 
     const data = await res.json();
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const games = data.map(g => {
-      const bk = g.bookmakers?.[0];
-      const h2h = bk?.markets?.find(m=>m.key==='h2h');
+      const bk      = g.bookmakers?.[0];
+      const h2h     = bk?.markets?.find(m=>m.key==='h2h');
       const spreads = bk?.markets?.find(m=>m.key==='spreads');
-      const totals = bk?.markets?.find(m=>m.key==='totals');
-      const homeML = h2h?.outcomes?.find(o=>o.name===g.home_team)?.price;
-      const awayML = h2h?.outcomes?.find(o=>o.name===g.away_team)?.price;
-      const spread = spreads?.outcomes?.find(o=>o.name===g.home_team)?.point ?? null;
-      const total = totals?.outcomes?.[0]?.point ?? null;
+      const totals  = bk?.markets?.find(m=>m.key==='totals');
+      const homeML  = h2h?.outcomes?.find(o=>o.name===g.home_team)?.price;
+      const awayML  = h2h?.outcomes?.find(o=>o.name===g.away_team)?.price;
+      const spread  = spreads?.outcomes?.find(o=>o.name===g.home_team)?.point ?? null;
+      const total   = totals?.outcomes?.[0]?.point ?? null;
       if (!homeML || !awayML) return null;
+      if (new Date(g.commence_time) < tomorrow) return null;
+      if (!inTournamentWindow(g.commence_time)) return null;
+      if (!isTournamentGame(g.home_team, g.away_team)) return null;
       return { id: g.id, home: g.home_team, away: g.away_team, homeML, awayML, spread, total, commence: g.commence_time };
-    }).filter(Boolean);
+    }).filter(Boolean).sort((a, b) => new Date(a.commence) - new Date(b.commence));
 
     if (!games.length) {
       document.getElementById('games-container').innerHTML = `<div class="empty-state">
@@ -465,7 +818,17 @@ async function fetchOdds() {
       return;
     }
 
-    document.getElementById('games-container').innerHTML = games.map(renderGameCard).join('');
+    // Fetch injury reports for all teams in parallel
+    setStatus('loading', 'Loading injury reports...');
+    const allTeams = [...new Set(games.flatMap(g => [g.home, g.away]))];
+    const injuryMap = {};
+    await Promise.all(allTeams.map(async team => {
+      injuryMap[team] = await fetchInjuries(team);
+    }));
+
+    document.getElementById('games-container').innerHTML =
+      games.map(g => renderGameCard(g, injuryMap[g.home] || [], injuryMap[g.away] || [])).join('');
+
     const now = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     setStatus('live', `Live · ${games.length} game${games.length!==1?'s':''} · Updated ${now}`);
   } catch(e) {
@@ -473,7 +836,7 @@ async function fetchOdds() {
     document.getElementById('games-container').innerHTML = `<div class="error-state">
       <div class="error-icon">⚠️</div>
       <div class="error-title">Could not load odds</div>
-      <div class="error-msg">${e.message}<br><br>Make sure you're opening this file in a browser (not a sandboxed environment) and your API key is valid.</div>
+      <div class="error-msg">${e.message}<br><br>Make sure you're opening this file in a browser and your API key is valid.</div>
       <button class="retry-btn" onclick="fetchOdds()">Try again</button>
     </div>`;
   }
@@ -491,27 +854,21 @@ async function fetchFutures() {
 
     const sorted = data
       .map(g => {
-        const bk = g.bookmakers?.[0];
-        const h2h = bk?.markets?.find(m=>m.key==='h2h');
+        const bk    = g.bookmakers?.[0];
+        const h2h   = bk?.markets?.find(m=>m.key==='h2h');
         const homeML = h2h?.outcomes?.find(o=>o.name===g.home_team)?.price;
         return { name: g.home_team, odds: homeML, id: g.id };
       })
-      .filter(t => t.odds)
+      .filter(t => t.odds && NCAA_TOURNAMENT_TEAMS_2026.has(t.name))
       .sort((a,b) => a.odds - b.odds)
       .slice(0,12);
 
-    const topPick = sorted[0];
+    const topPick   = sorted[0];
     const valuePick = sorted.find((t,i) => i>0 && t.odds > 800);
 
     let html = '';
-    if (topPick) html += `<div class="rec-box rec-strong" style="margin-bottom:12px">
-      <div class="rec-label strong">Best bet: ${topPick.name} (${fmtML(topPick.odds)})</div>
-      <div class="rec-text">Implied title favorite based on current lines. Best combination of probability and odds.</div>
-    </div>`;
-    if (valuePick) html += `<div class="rec-box rec-lean" style="margin-bottom:12px">
-      <div class="rec-label lean">Value play: ${valuePick.name} (${fmtML(valuePick.odds)})</div>
-      <div class="rec-text">Strong payout potential at ${fmtML(valuePick.odds)} — worth a small stake if you believe in them.</div>
-    </div>`;
+    if (topPick)   html += `<div class="rec-box rec-strong" style="margin-bottom:12px"><div class="rec-label strong">Best bet: ${topPick.name} (${fmtML(topPick.odds)})</div><div class="rec-text">Implied title favorite based on current lines.</div></div>`;
+    if (valuePick) html += `<div class="rec-box rec-lean" style="margin-bottom:12px"><div class="rec-label lean">Value play: ${valuePick.name} (${fmtML(valuePick.odds)})</div><div class="rec-text">Strong payout potential at ${fmtML(valuePick.odds)} — worth a small stake.</div></div>`;
 
     html += '<div class="futures-list">' + sorted.map((t,i) => `
       <div class="fut-row">
@@ -539,7 +896,7 @@ function switchTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('tab-games').style.display = tab==='games' ? '' : 'none';
+  document.getElementById('tab-games').style.display  = tab==='games'   ? '' : 'none';
   document.getElementById('tab-futures').style.display = tab==='futures' ? '' : 'none';
   if (tab==='futures') fetchFutures();
 }
@@ -565,9 +922,9 @@ function updateWager(id, val) {
 }
 
 function renderSlip() {
-  const keys = Object.keys(bets);
+  const keys   = Object.keys(bets);
   document.getElementById('slip-badge').textContent = keys.length;
-  const items = document.getElementById('slip-items');
+  const items  = document.getElementById('slip-items');
   const footer = document.getElementById('slip-footer');
   if (!keys.length) {
     items.innerHTML = '<div class="slip-empty">Select odds to add bets</div>';
@@ -595,7 +952,7 @@ function renderSlip() {
 function updateTotals() {
   let tw=0, tp=0;
   Object.values(bets).forEach(b => { tw+=b.wager; tp+=parseFloat(calcPayout(b.ml,b.wager)); });
-  document.getElementById('total-wager').textContent = '$'+tw.toFixed(2);
+  document.getElementById('total-wager').textContent  = '$'+tw.toFixed(2);
   document.getElementById('total-payout').textContent = '$'+tp.toFixed(2);
 }
 
