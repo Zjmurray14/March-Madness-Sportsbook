@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>March Madness 2026 · Sportsbook</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --surface2: #1e2230;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f2f7;
+    --muted: #7a8399;
+    --faint: #3a3f52;
+    --green: #2ecc84;
+    --green-dim: rgba(46,204,132,0.12);
+    --green-border: rgba(46,204,132,0.35);
+    --blue: #4f8ef7;
+    --blue-dim: rgba(79,142,247,0.12);
+    --blue-border: rgba(79,142,247,0.35);
+    --amber: #f0a429;
+    --amber-dim: rgba(240,164,41,0.12);
+    --amber-border: rgba(240,164,41,0.35);
+    --red: #f25c5c;
+    --red-dim: rgba(242,92,92,0.1);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Layout */
+  .layout { display: flex; min-height: 100vh; }
+  .main { flex: 1; padding: 24px; max-width: 820px; }
+  .sidebar { width: 320px; min-width: 320px; padding: 24px 24px 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+
+  /* Header */
+  .header { margin-bottom: 24px; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--green); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .logo-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 0.5px solid var(--border2); border-radius: 20px; padding: 6px 12px; font-size: 12px; color: var(--muted); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
+  .dot.live { background: var(--green); animation: pulse 2s infinite; }
+  .dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--surface); border-radius: var(--radius); padding: 4px; border: 0.5px solid var(--border); }
+  .tab { flex: 1; padding: 8px 12px; border-radius: 7px; border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: var(--surface2); color: var(--text); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Game card */
+  .game-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; transition: border-color 0.15s; }
+  .game-card:hover { border-color: var(--border2); }
+  .game-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .chip-green { background: var(--green-dim); color: var(--green); border: 0.5px solid var(--green-border); }
+  .chip-blue { background: var(--blue-dim); color: var(--blue); border: 0.5px solid var(--blue-border); }
+  .chip-amber { background: var(--amber-dim); color: var(--amber); border: 0.5px solid var(--amber-border); }
+  .chip-gray { background: rgba(255,255,255,0.05); color: var(--muted); border: 0.5px solid var(--border); }
+  .game-time { font-size: 11px; color: var(--muted); }
+
+  /* Recommendation box */
+  .rec-box { border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; border-left: 3px solid; }
+  .rec-strong { background: var(--green-dim); border-color: var(--green); }
+  .rec-lean { background: var(--blue-dim); border-color: var(--blue); }
+  .rec-toss { background: var(--amber-dim); border-color: var(--amber); }
+  .rec-label { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .rec-label.strong { color: var(--green); }
+  .rec-label.lean { color: var(--blue); }
+  .rec-label.toss { color: var(--amber); }
+  .rec-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .conf-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .conf-track { flex: 1; height: 4px; background: var(--faint); border-radius: 2px; overflow: hidden; max-width: 120px; }
+  .conf-fill { height: 100%; border-radius: 2px; }
+  .conf-pct { font-size: 11px; color: var(--muted); }
+
+  /* Matchup */
+  .matchup-grid { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .team-col { display: flex; flex-direction: column; }
+  .team-col.right { align-items: flex-end; }
+  .team-nm { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .team-nm.picked { color: var(--green); }
+  .team-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .vs-sep { text-align: center; font-size: 12px; color: var(--faint); font-weight: 500; }
+
+  /* Odds buttons */
+  .odds-section-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-weight: 500; }
+  .odds-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+  .odds-btn { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 9px 6px; text-align: center; cursor: pointer; position: relative; transition: all 0.12s; }
+  .odds-btn:hover { border-color: var(--border2); background: #252a3a; }
+  .odds-btn.selected { background: var(--blue-dim); border-color: var(--blue-border); }
+  .odds-btn.rec-highlight { border-color: var(--green-border); }
+  .ai-tag { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: var(--green); color: #0d0f14; font-size: 10px; padding: 1px 6px; border-radius: 8px; white-space: nowrap; font-weight: 700; }
+  .ob-label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .ob-val { font-size: 14px; font-weight: 700; display: block; }
+  .ob-val.fav { color: var(--blue); }
+  .ob-val.dog { color: var(--green); }
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 10px 0; }
+  .totals-row { display: flex; gap: 6px; justify-content: center; }
+  .total-btn { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 16px; font-size: 13px; cursor: pointer; color: var(--text); transition: all 0.12s; position: relative; }
+  .total-btn:hover { border-color: var(--border2); }
+  .total-btn.selected { background: var(--blue-dim); border-color: var(--blue-border); }
+  .total-btn.rec-highlight { border-color: var(--green-border); }
+  .total-note { font-size: 11px; color: var(--muted); }
+
+  /* States */
+  .loading-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .spinner { width: 32px; height: 32px; border: 2px solid var(--faint); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-state { text-align: center; padding: 40px 20px; }
+  .error-icon { font-size: 32px; margin-bottom: 12px; }
+  .error-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .error-msg { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; max-width: 400px; margin-left: auto; margin-right: auto; }
+  .retry-btn { background: var(--green); color: #0d0f14; border: none; border-radius: var(--radius-sm); padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+
+  /* Bet Slip */
+  .slip-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; height: fit-content; }
+  .slip-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+  .slip-badge { background: var(--green); color: #0d0f14; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 8px; }
+  .slip-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0; border: 0.5px dashed var(--faint); border-radius: var(--radius-sm); }
+  .slip-item { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; position: relative; }
+  .slip-team { font-size: 13px; font-weight: 600; }
+  .slip-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .slip-x { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
+  .slip-x:hover { color: var(--red); }
+  .wager-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .wager-label { font-size: 12px; color: var(--muted); }
+  .wager-input { background: var(--bg); border: 0.5px solid var(--faint); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 13px; width: 80px; color: var(--text); font-family: inherit; }
+  .wager-input:focus { outline: none; border-color: var(--blue); }
+  .payout { font-size: 13px; color: var(--green); font-weight: 600; }
+  .slip-divider { border: none; border-top: 0.5px solid var(--border); margin: 12px 0; }
+  .slip-total-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .slip-total-row .val { font-weight: 600; }
+  .slip-total-row .val.green { color: var(--green); }
+  .place-btn { width: 100%; margin-top: 12px; padding: 12px; border-radius: var(--radius-sm); background: var(--green); color: #0d0f14; border: none; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.02em; transition: opacity 0.15s; }
+  .place-btn:hover { opacity: 0.9; }
+  .disclaimer { font-size: 11px; color: var(--faint); text-align: center; margin-top: 12px; line-height: 1.5; }
+  .quota-bar { font-size: 11px; color: var(--muted); margin-top: 10px; text-align: center; }
+
+  /* Futures */
+  .futures-list { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .fut-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 0.5px solid var(--border); gap: 10px; }
+  .fut-row:last-child { border-bottom: none; }
+  .fut-rank { font-size: 12px; color: var(--faint); width: 18px; }
+  .fut-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .fut-info { font-size: 12px; color: var(--muted); margin-right: 12px; }
+  .fut-btn { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text); position: relative; transition: all 0.12s; }
+  .fut-btn:hover { border-color: var(--border2); }
+  .fut-btn.selected { background: var(--blue-dim); border-color: var(--blue-border); }
+  .fut-btn.rec-highlight { border-color: var(--green-border); }
+  .fut-ai-tag { position: absolute; top: -8px; right: -4px; background: var(--green); color: #0d0f14; font-size: 10px; padding: 1px 5px; border-radius: 8px; font-weight: 700; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--green); color: #0d0f14; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 100; }
+  .toast.show { opacity: 1; }
+
+  .refresh-btn { background: none; border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 5px 12px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.12s; }
+  .refresh-btn:hover { border-color: var(--border2); color: var(--text); }
+
+  @media (max-width: 768px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; min-width: unset; padding: 0 16px 24px; position: static; height: auto; }
+    .main { padding: 16px; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="main">
+    <div class="header">
+      <div class="header-top">
+        <div class="logo">
+          <div class="logo-icon">🏀</div>
+          <div>
+            <div class="logo-text">March Madness 2026</div>
+            <div class="logo-sub">Live sportsbook · NCAA Tournament</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="status-pill">
+            <div class="dot" id="status-dot"></div>
+            <span id="status-text">Loading...</span>
+          </div>
+          <button class="refresh-btn" onclick="fetchOdds()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="quota-bar" id="quota-bar"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('games',this)">Games &amp; Lines</button>
+      <button class="tab" onclick="switchTab('futures',this)">Championship Futures</button>
+    </div>
+
+    <div id="tab-games">
+      <div id="games-container">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <div>Fetching live odds from The Odds API...</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-futures" style="display:none">
+      <div id="futures-container">
+        <div class="loading-state"><div class="spinner"></div><div>Loading futures...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="slip-card">
+      <div class="slip-title">
+        Bet Slip
+        <span class="slip-badge" id="slip-badge">0</span>
+      </div>
+      <div id="slip-items">
+        <div class="slip-empty">Select odds to add bets</div>
+      </div>
+      <div id="slip-footer" style="display:none">
+        <div class="slip-divider"></div>
+        <div class="slip-total-row"><span style="color:var(--muted)">Total wager</span><span class="val" id="total-wager">$0.00</span></div>
+        <div class="slip-total-row"><span style="color:var(--muted)">Est. payout</span><span class="val green" id="total-payout">$0.00</span></div>
+        <button class="place-btn" onclick="placeBets()">Place Bets</button>
+      </div>
+      <div class="disclaimer">For entertainment only. Bet responsibly.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Bets placed! Good luck! 🏀</div>
+
+<script>
+const API_KEY = '128b7d366566d73648d5b5a3a476fa99';
+let bets = {};
+let currentTab = 'games';
+
+function mlToDecimal(ml) {
+  const v = parseInt(String(ml).replace('+',''));
+  return v > 0 ? (v/100)+1 : (100/Math.abs(v))+1;
+}
+function fmtML(ml) { return (ml > 0 ? '+' : '') + ml; }
+function calcPayout(ml, wager) { return (mlToDecimal(ml) * wager).toFixed(2); }
+
+function winProb(mlHome, mlAway) {
+  const pH = 1/mlToDecimal(mlHome), pA = 1/mlToDecimal(mlAway);
+  const t = pH + pA;
+  return { home: Math.round(pH/t*100), away: Math.round(pA/t*100) };
+}
+
+function genPick(game) {
+  const { home, away, homeML, awayML, spread, total } = game;
+  const prob = winProb(homeML, awayML);
+  const favIsHome = homeML < awayML;
+  const favML = favIsHome ? homeML : awayML;
+  const spreadAbs = Math.abs(spread || 0);
+  let tier, conf, pick, pickLabel, reason;
+
+  if (Math.max(prob.home, prob.away) > 74) {
+    tier = 'strong'; conf = Math.max(prob.home, prob.away);
+    if (spreadAbs > 15) {
+      // Dog spread at -110 — always within the -200 threshold
+      const dog = favIsHome ? away : home;
+      pick = favIsHome ? 'away-spread' : 'home-spread';
+      pickLabel = dog + ' +' + spreadAbs.toFixed(1);
+      reason = 'Heavy favorite, but ' + spreadAbs.toFixed(1) + '+ point spreads rarely cover in tournament play. Take the points.';
+    } else {
+      // Favorite ML — only recommend if odds are -200 or better
+      if (favML < -200) return null;
+      const fav = favIsHome ? home : away;
+      pick = favIsHome ? 'home-ml' : 'away-ml';
+      pickLabel = fav + ' ML';
+      reason = fav + ' has a ' + conf + '% implied win probability — strong moneyline value at these odds.';
+    }
+  } else if (Math.max(prob.home, prob.away) > 57) {
+    tier = 'lean'; conf = Math.max(prob.home, prob.away);
+    if (spreadAbs <= 7) {
+      // Spread at -110 — always within threshold
+      const fav = favIsHome ? home : away;
+      pick = favIsHome ? 'home-spread' : 'away-spread';
+      pickLabel = fav + ' -' + spreadAbs.toFixed(1);
+      reason = fav + ' is the clear favorite at ' + conf + '% implied probability. The spread is manageable — back them to cover.';
+    } else {
+      // Dog spread at -110 — always within threshold
+      const dog = favIsHome ? away : home;
+      pick = favIsHome ? 'away-spread' : 'home-spread';
+      pickLabel = dog + ' +' + spreadAbs.toFixed(1);
+      reason = 'Wide spread for a competitive matchup. The underdog getting ' + spreadAbs.toFixed(1) + ' points offers solid value.';
+    }
+  } else {
+    // Near coin-flip — no statistical edge, skip recommendation
+    return null;
+  }
+
+  const totalPick = total
+    ? (total > 155
+      ? { side:'over', conf:58, reason:'High total implies an up-tempo game — lean over.' }
+      : { side:'under', conf:61, reason:'Lower total suggests a defensive battle — lean under.' })
+    : null;
+
+  return { tier, conf, pick, pickLabel, reason, totalPick };
+}
+
+function renderGameCard(game) {
+  const { id, home, away, homeML, awayML, spread, total, commence } = game;
+  const dt = new Date(commence);
+  const timeStr = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ', ' +
+    dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+  const pick = genPick(game);
+
+  const chipCls = pick ? (pick.tier==='strong' ? 'chip-green' : 'chip-blue') : 'chip-gray';
+  const chipLbl = pick ? (pick.tier==='strong' ? 'Strong pick' : 'Lean') : 'No pick';
+  const confColor = pick?.tier==='strong' ? 'var(--green)' : 'var(--blue)';
+
+  const hSpId = id+'-h-sp', aSpId = id+'-a-sp';
+  const hMLId = id+'-h-ml', aMLId = id+'-a-ml';
+  const ovId = id+'-ov', unId = id+'-un';
+
+  const homeSpreadVal = spread != null ? (spread > 0 ? '+'+spread.toFixed(1) : spread.toFixed(1)) : null;
+  const awaySpreadVal = spread != null ? (spread > 0 ? '-'+spread.toFixed(1) : '+'+Math.abs(spread).toFixed(1)) : null;
+
+  const isHSp = pick?.pick==='home-spread', isASp = pick?.pick==='away-spread';
+  const isHML = pick?.pick==='home-ml', isAML = pick?.pick==='away-ml';
+  const isOv = pick?.totalPick?.side==='over';
+
+  return `<div class="game-card">
+    <div class="game-meta">
+      <span class="chip chip-gray">NCAA Tournament</span>
+      <span class="chip ${chipCls}">${chipLbl}</span>
+      <span class="game-time">${timeStr}</span>
+    </div>
+
+    ${pick ? `
+    <div class="rec-box ${pick.tier==='strong' ? 'rec-strong' : 'rec-lean'}">
+      <div class="rec-label ${pick.tier}">AI Pick: ${pick.pickLabel}</div>
+      <div class="rec-text">${pick.reason}</div>
+      <div class="conf-row">
+        <span style="font-size:11px;color:var(--muted)">Confidence</span>
+        <div class="conf-track"><div class="conf-fill" style="width:${pick.conf}%;background:${confColor}"></div></div>
+        <span class="conf-pct">${pick.conf}%</span>
+      </div>
+    </div>` : `
+    <div class="rec-box rec-toss" style="margin-bottom:14px">
+      <div class="rec-label toss">No recommendation</div>
+      <div class="rec-text">This matchup lacks a clear statistical edge — odds are too short or the lines are too close to identify value. Sit this one out.</div>
+    </div>`}
+
+    <div class="matchup-grid">
+      <div class="team-col">
+        <div class="team-nm ${isAML||isASp?'picked':''}">${away}</div>
+        <div class="team-sub">Away</div>
+      </div>
+      <div class="vs-sep">vs</div>
+      <div class="team-col right">
+        <div class="team-nm ${isHML||isHSp?'picked':''}">${home}</div>
+        <div class="team-sub">Home</div>
+      </div>
+    </div>
+
+    ${homeSpreadVal ? `
+    <div class="odds-section-label">Spread · Moneyline</div>
+    <div class="odds-row">
+      <button class="odds-btn ${isASp?'rec-highlight':''}" data-bet="${aSpId}" onclick="addBet('${aSpId}','${away} ${awaySpreadVal}','-110')">
+        ${isASp?'<span class="ai-tag">AI</span>':''}
+        <span class="ob-label">${away}</span>
+        <span class="ob-val dog">${awaySpreadVal}</span>
+        <span style="font-size:11px;color:var(--muted)">-110</span>
+      </button>
+      <button class="odds-btn ${isAML?'rec-highlight':''}" data-bet="${aMLId}" onclick="addBet('${aMLId}','${away} ML','${awayML}')">
+        ${isAML?'<span class="ai-tag">AI</span>':''}
+        <span class="ob-label">${away} ML</span>
+        <span class="ob-val ${awayML<0?'fav':'dog'}">${fmtML(awayML)}</span>
+      </button>
+      <button class="odds-btn ${isHML?'rec-highlight':''}" data-bet="${hMLId}" onclick="addBet('${hMLId}','${home} ML','${homeML}')">
+        ${isHML?'<span class="ai-tag">AI</span>':''}
+        <span class="ob-label">${home} ML</span>
+        <span class="ob-val ${homeML<0?'fav':'dog'}">${fmtML(homeML)}</span>
+      </button>
+    </div>` : `
+    <div class="odds-section-label">Moneyline</div>
+    <div class="odds-row" style="grid-template-columns:1fr 1fr">
+      <button class="odds-btn ${isAML?'rec-highlight':''}" data-bet="${aMLId}" onclick="addBet('${aMLId}','${away} ML','${awayML}')">
+        ${isAML?'<span class="ai-tag">AI</span>':''}
+        <span class="ob-label">${away}</span>
+        <span class="ob-val ${awayML<0?'fav':'dog'}">${fmtML(awayML)}</span>
+      </button>
+      <button class="odds-btn ${isHML?'rec-highlight':''}" data-bet="${hMLId}" onclick="addBet('${hMLId}','${home} ML','${homeML}')">
+        ${isHML?'<span class="ai-tag">AI</span>':''}
+        <span class="ob-label">${home}</span>
+        <span class="ob-val ${homeML<0?'fav':'dog'}">${fmtML(homeML)}</span>
+      </button>
+    </div>`}
+
+    ${pick?.totalPick && total ? `
+    <div class="divider"></div>
+    <div class="odds-section-label">Total · O/U ${total} &nbsp;<span style="color:${confColor}">AI: ${pick.totalPick.side.toUpperCase()} (${pick.totalPick.conf}%)</span></div>
+    <div class="totals-row">
+      <button class="total-btn ${isOv?'rec-highlight':''}" data-bet="${ovId}" onclick="addBet('${ovId}','${away} vs ${home} Over ${total}','-110')">
+        ${isOv?'<span class="ai-tag">AI</span>':''}
+        Over ${total} <span class="total-note">-110</span>
+      </button>
+      <button class="total-btn ${!isOv?'rec-highlight':''}" data-bet="${unId}" onclick="addBet('${unId}','${away} vs ${home} Under ${total}','-110')">
+        ${!isOv?'<span class="ai-tag">AI</span>':''}
+        Under ${total} <span class="total-note">-110</span>
+      </button>
+    </div>` : ''}
+  </div>`;
+}
+
+async function fetchOdds() {
+  setStatus('loading', 'Fetching live odds...');
+  document.getElementById('games-container').innerHTML = '<div class="loading-state"><div class="spinner"></div><div>Loading live lines...</div></div>';
+
+  try {
+    const url = `https://api.the-odds-api.com/v4/sports/basketball_ncaab/odds/?apiKey=${API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american&bookmakers=draftkings,fanduel,betmgm`;
+    const res = await fetch(url);
+    const remaining = res.headers.get('x-requests-remaining');
+    const used = res.headers.get('x-requests-used');
+    if (remaining) document.getElementById('quota-bar').textContent = `API quota: ${remaining} calls remaining · ${used} used`;
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const games = data.map(g => {
+      const bk = g.bookmakers?.[0];
+      const h2h = bk?.markets?.find(m=>m.key==='h2h');
+      const spreads = bk?.markets?.find(m=>m.key==='spreads');
+      const totals = bk?.markets?.find(m=>m.key==='totals');
+      const homeML = h2h?.outcomes?.find(o=>o.name===g.home_team)?.price;
+      const awayML = h2h?.outcomes?.find(o=>o.name===g.away_team)?.price;
+      const spread = spreads?.outcomes?.find(o=>o.name===g.home_team)?.point ?? null;
+      const total = totals?.outcomes?.[0]?.point ?? null;
+      if (!homeML || !awayML) return null;
+      return { id: g.id, home: g.home_team, away: g.away_team, homeML, awayML, spread, total, commence: g.commence_time };
+    }).filter(Boolean);
+
+    if (!games.length) {
+      document.getElementById('games-container').innerHTML = `<div class="empty-state">
+        <div style="font-size:32px;margin-bottom:12px">🏀</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">No games available right now</div>
+        <div style="color:var(--muted);font-size:13px">Lines are typically posted 24–48 hrs before tip-off.<br>Check back as the tournament progresses.</div>
+      </div>`;
+      setStatus('live', 'Connected · No active lines');
+      return;
+    }
+
+    document.getElementById('games-container').innerHTML = games.map(renderGameCard).join('');
+    const now = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    setStatus('live', `Live · ${games.length} game${games.length!==1?'s':''} · Updated ${now}`);
+  } catch(e) {
+    setStatus('error', 'Error loading odds');
+    document.getElementById('games-container').innerHTML = `<div class="error-state">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">Could not load odds</div>
+      <div class="error-msg">${e.message}<br><br>Make sure you're opening this file in a browser (not a sandboxed environment) and your API key is valid.</div>
+      <button class="retry-btn" onclick="fetchOdds()">Try again</button>
+    </div>`;
+  }
+}
+
+async function fetchFutures() {
+  const container = document.getElementById('futures-container');
+  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><div>Loading futures...</div></div>';
+  try {
+    const url = `https://api.the-odds-api.com/v4/sports/basketball_ncaab/odds/?apiKey=${API_KEY}&regions=us&markets=h2h&oddsFormat=american&bookmakers=draftkings`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.length) { container.innerHTML = '<div class="empty-state" style="color:var(--muted)">No futures available yet.</div>'; return; }
+
+    const sorted = data
+      .map(g => {
+        const bk = g.bookmakers?.[0];
+        const h2h = bk?.markets?.find(m=>m.key==='h2h');
+        const homeML = h2h?.outcomes?.find(o=>o.name===g.home_team)?.price;
+        return { name: g.home_team, odds: homeML, id: g.id };
+      })
+      .filter(t => t.odds)
+      .sort((a,b) => a.odds - b.odds)
+      .slice(0,12);
+
+    const topPick = sorted[0];
+    const valuePick = sorted.find((t,i) => i>0 && t.odds > 800);
+
+    let html = '';
+    if (topPick) html += `<div class="rec-box rec-strong" style="margin-bottom:12px">
+      <div class="rec-label strong">Best bet: ${topPick.name} (${fmtML(topPick.odds)})</div>
+      <div class="rec-text">Implied title favorite based on current lines. Best combination of probability and odds.</div>
+    </div>`;
+    if (valuePick) html += `<div class="rec-box rec-lean" style="margin-bottom:12px">
+      <div class="rec-label lean">Value play: ${valuePick.name} (${fmtML(valuePick.odds)})</div>
+      <div class="rec-text">Strong payout potential at ${fmtML(valuePick.odds)} — worth a small stake if you believe in them.</div>
+    </div>`;
+
+    html += '<div class="futures-list">' + sorted.map((t,i) => `
+      <div class="fut-row">
+        <span class="fut-rank">${i+1}</span>
+        <span class="fut-name">${t.name}</span>
+        <button class="fut-btn ${i===0||t===valuePick?'rec-highlight':''}" data-bet="fut-${t.name}" onclick="addBet('fut-${t.name}','${t.name} to win championship','${t.odds}')">
+          ${i===0||t===valuePick?'<span class="fut-ai-tag">AI</span>':''}
+          ${fmtML(t.odds)}
+        </button>
+      </div>`).join('') + '</div>';
+
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = `<div class="error-state"><div class="error-icon">⚠️</div><div class="error-title">Could not load futures</div><div class="error-msg">${e.message}</div><button class="retry-btn" onclick="fetchFutures()">Try again</button></div>`;
+  }
+}
+
+function setStatus(type, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'dot' + (type==='live'?' live':type==='error'?' error':'');
+  document.getElementById('status-text').textContent = text;
+}
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-games').style.display = tab==='games' ? '' : 'none';
+  document.getElementById('tab-futures').style.display = tab==='futures' ? '' : 'none';
+  if (tab==='futures') fetchFutures();
+}
+
+function addBet(id, label, ml) {
+  if (bets[id]) { delete bets[id]; }
+  else { bets[id] = { label, ml: parseInt(String(ml).replace('+','')), wager: 10 }; }
+  renderSlip();
+  document.querySelectorAll(`[data-bet="${id}"]`).forEach(el => el.classList.toggle('selected', !!bets[id]));
+}
+
+function removeBet(id) {
+  document.querySelectorAll(`[data-bet="${id}"]`).forEach(el => el.classList.remove('selected'));
+  delete bets[id];
+  renderSlip();
+}
+
+function updateWager(id, val) {
+  bets[id].wager = parseFloat(val)||0;
+  const el = document.getElementById('po-'+id);
+  if(el) el.textContent = '$'+calcPayout(bets[id].ml, bets[id].wager);
+  updateTotals();
+}
+
+function renderSlip() {
+  const keys = Object.keys(bets);
+  document.getElementById('slip-badge').textContent = keys.length;
+  const items = document.getElementById('slip-items');
+  const footer = document.getElementById('slip-footer');
+  if (!keys.length) {
+    items.innerHTML = '<div class="slip-empty">Select odds to add bets</div>';
+    footer.style.display = 'none';
+    return;
+  }
+  footer.style.display = 'block';
+  items.innerHTML = keys.map(id => {
+    const b = bets[id];
+    return `<div class="slip-item">
+      <button class="slip-x" onclick="removeBet('${id}')">×</button>
+      <div class="slip-team">${b.label}</div>
+      <div class="slip-desc">${fmtML(b.ml)} odds</div>
+      <div class="wager-row">
+        <span class="wager-label">Wager $</span>
+        <input type="number" class="wager-input" value="${b.wager}" min="1" step="1" oninput="updateWager('${id}',this.value)" />
+        <span class="wager-label">→</span>
+        <span class="payout" id="po-${id}">$${calcPayout(b.ml,b.wager)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  updateTotals();
+}
+
+function updateTotals() {
+  let tw=0, tp=0;
+  Object.values(bets).forEach(b => { tw+=b.wager; tp+=parseFloat(calcPayout(b.ml,b.wager)); });
+  document.getElementById('total-wager').textContent = '$'+tw.toFixed(2);
+  document.getElementById('total-payout').textContent = '$'+tp.toFixed(2);
+}
+
+function placeBets() {
+  bets = {};
+  renderSlip();
+  document.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+fetchOdds();
+</script>
+</body>
+</html>
