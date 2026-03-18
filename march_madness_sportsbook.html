@@ -194,11 +194,64 @@
   .stat-sep { text-align: center; font-size: 9px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 18px; }
   .stats-source { font-size: 10px; color: var(--faint); text-align: center; margin-top: 3px; }
 
+  /* Stats Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 0.5px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .modal-title { font-size: 15px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; line-height: 1; padding: 0; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 20px; }
+  .modal-section { margin-bottom: 20px; }
+  .modal-section:last-child { margin-bottom: 0; }
+  .modal-section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 10px; }
+  .stats-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 12px; padding: 8px; background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.12s; font-family: inherit; }
+  .stats-btn:hover { border-color: var(--border2); color: var(--text); }
+
   /* Injury badges */
   .injury-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
   .inj-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
   .inj-out { background: rgba(242,92,92,0.12); color: var(--red); border: 0.5px solid rgba(242,92,92,0.35); }
   .inj-q   { background: var(--amber-dim); color: var(--amber); border: 0.5px solid var(--amber-border); }
+
+  /* Bet History */
+  .tab-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--amber); color: #0d0f14; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; margin-left: 6px; min-width: 18px; }
+  .tab-badge:empty { display: none; }
+
+  .hist-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .hist-stat { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .hist-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .hist-stat-val { font-size: 18px; font-weight: 700; }
+
+  .hist-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; transition: border-color 0.15s; }
+  .hist-card:hover { border-color: var(--border2); }
+  .hist-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .hist-card-label { font-size: 14px; font-weight: 600; }
+  .hist-card-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .hist-card-amounts { display: flex; gap: 20px; margin-bottom: 10px; }
+  .hist-amount-block { display: flex; flex-direction: column; gap: 2px; }
+  .hist-amount-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .hist-amount-val { font-size: 14px; font-weight: 700; }
+  .hist-actions { display: flex; gap: 6px; }
+  .hist-result { font-size: 12px; font-weight: 600; }
+
+  .status-pending { background: var(--amber-dim); color: var(--amber); border: 0.5px solid var(--amber-border); }
+  .status-won { background: var(--green-dim); color: var(--green); border: 0.5px solid var(--green-border); }
+  .status-lost { background: var(--red-dim); color: var(--red); border: 0.5px solid rgba(242,92,92,0.35); }
+
+  .mark-btn { flex: 1; padding: 6px 8px; border-radius: var(--radius-sm); border: 0.5px solid var(--border); background: var(--surface2); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.12s; }
+  .mark-btn:hover { border-color: var(--border2); color: var(--text); }
+  .mark-btn.mark-won:hover { background: var(--green-dim); border-color: var(--green-border); color: var(--green); }
+  .mark-btn.mark-lost:hover { background: var(--red-dim); border-color: rgba(242,92,92,0.35); color: var(--red); }
+
+  .clear-hist-btn { display: flex; align-items: center; gap: 6px; background: none; border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.12s; }
+  .clear-hist-btn:hover { border-color: rgba(242,92,92,0.35); color: var(--red); }
+
+  @media (max-width: 480px) {
+    .hist-stats { grid-template-columns: 1fr 1fr; }
+    .hist-stats .hist-stat:last-child { grid-column: span 2; }
+  }
 </style>
 </head>
 <body>
@@ -228,6 +281,7 @@
     <div class="tabs">
       <button class="tab active" onclick="switchTab('games',this)">Games &amp; Lines</button>
       <button class="tab" onclick="switchTab('futures',this)">Championship Futures</button>
+      <button class="tab" onclick="switchTab('history',this)">Bet History<span class="tab-badge" id="history-badge"></span></button>
     </div>
 
     <div id="tab-games">
@@ -243,6 +297,28 @@
       <div id="futures-container">
         <div class="loading-state"><div class="spinner"></div><div>Loading futures...</div></div>
       </div>
+    </div>
+
+    <div id="tab-history" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700">Bet History</div>
+        <button class="clear-hist-btn" onclick="clearHistory()">✕ Clear History</button>
+      </div>
+      <div class="hist-stats">
+        <div class="hist-stat">
+          <div class="hist-stat-label">Total Wagered</div>
+          <div class="hist-stat-val" id="stat-wagered">$0.00</div>
+        </div>
+        <div class="hist-stat">
+          <div class="hist-stat-label">Net P/L</div>
+          <div class="hist-stat-val" id="stat-pl">$0.00</div>
+        </div>
+        <div class="hist-stat">
+          <div class="hist-stat-label">Win Rate</div>
+          <div class="hist-stat-val" id="stat-winrate">—</div>
+        </div>
+      </div>
+      <div id="hist-list"><div class="empty-state">No bets placed yet. Place your first bet to see history here.</div></div>
     </div>
   </div>
 
@@ -266,12 +342,24 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="stats-modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-inner">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Team Stats</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast">Bets placed! Good luck! 🏀</div>
 
 <script>
 const API_KEY = '128b7d366566d73648d5b5a3a476fa99';
 let bets = {};
 let currentTab = 'games';
+let gamesStore = {};
+let injuriesStore = {};
 
 // ─── KenPom-style efficiency ratings ─────────────────────────────────────────
 // AdjO: Adjusted Offensive Efficiency (pts per 100 possessions, higher = better)
@@ -340,6 +428,61 @@ const KENPOM = {
   'Norfolk State Spartans':         { adjO: 106.4, adjD: 99.8, tempo: 67.4 },
   'Wagner Seahawks':                { adjO: 105.8, adjD: 101.2, tempo: 68.1 },
   'American Eagles':                { adjO: 106.8, adjD: 100.6, tempo: 66.2 },
+  // ── 2026 tournament teams added ──────────────────────────────────────────────
+  // EAST
+  'UConn Huskies':                  { adjO: 120.8, adjD: 88.2, tempo: 67.4 },
+  'Connecticut Huskies':            { adjO: 120.8, adjD: 88.2, tempo: 67.4 },
+  "St. John's Red Storm":           { adjO: 116.5, adjD: 91.8, tempo: 68.4 },
+  "St John's Red Storm":            { adjO: 116.5, adjD: 91.8, tempo: 68.4 },
+  'Ohio State Buckeyes':            { adjO: 113.2, adjD: 93.4, tempo: 67.8 },
+  'UCF Knights':                    { adjO: 111.6, adjD: 94.8, tempo: 69.2 },
+  'Central Florida Knights':        { adjO: 111.6, adjD: 94.8, tempo: 69.2 },
+  'South Florida Bulls':            { adjO: 110.4, adjD: 95.6, tempo: 68.8 },
+  'Northern Iowa Panthers':         { adjO: 111.2, adjD: 94.2, tempo: 65.4 },
+  'Cal Baptist Lancers':            { adjO: 110.8, adjD: 96.2, tempo: 67.1 },
+  'California Baptist Lancers':     { adjO: 110.8, adjD: 96.2, tempo: 67.1 },
+  'North Dakota State Bison':       { adjO: 109.4, adjD: 97.8, tempo: 64.8 },
+  'Furman Paladins':                { adjO: 108.2, adjD: 98.4, tempo: 65.2 },
+  'Siena Saints':                   { adjO: 106.8, adjD: 100.2, tempo: 67.4 },
+  // WEST
+  'Arkansas Razorbacks':            { adjO: 117.2, adjD: 91.6, tempo: 70.8 },
+  'Miami Hurricanes':               { adjO: 114.4, adjD: 93.2, tempo: 68.6 },
+  'Villanova Wildcats':             { adjO: 113.6, adjD: 93.8, tempo: 66.2 },
+  'NC State Wolfpack':              { adjO: 111.8, adjD: 95.4, tempo: 67.6 },
+  'High Point Panthers':            { adjO: 110.6, adjD: 96.8, tempo: 68.2 },
+  'Hawaii Rainbow Warriors':        { adjO: 109.2, adjD: 98.2, tempo: 67.4 },
+  'Kennesaw State Owls':            { adjO: 107.8, adjD: 99.6, tempo: 66.8 },
+  'Queens Royals':                  { adjO: 106.4, adjD: 101.4, tempo: 65.2 },
+  "Queens University Royals":       { adjO: 106.4, adjD: 101.4, tempo: 65.2 },
+  'LIU Sharks':                     { adjO: 104.8, adjD: 103.2, tempo: 67.6 },
+  'Long Island University Sharks':  { adjO: 104.8, adjD: 103.2, tempo: 67.6 },
+  // MIDWEST
+  'Michigan Wolverines':            { adjO: 122.4, adjD: 87.6, tempo: 68.8 },
+  'Texas Tech Red Raiders':         { adjO: 116.8, adjD: 90.4, tempo: 65.2 },
+  'Georgia Bulldogs':               { adjO: 113.4, adjD: 93.6, tempo: 69.2 },
+  'Saint Louis Billikens':          { adjO: 112.6, adjD: 94.4, tempo: 66.8 },
+  'Santa Clara Broncos':            { adjO: 111.4, adjD: 95.2, tempo: 67.4 },
+  'Miami (OH) RedHawks':            { adjO: 110.6, adjD: 95.8, tempo: 68.4 },
+  'Miami Ohio RedHawks':            { adjO: 110.6, adjD: 95.8, tempo: 68.4 },
+  'Miami (Ohio) RedHawks':          { adjO: 110.6, adjD: 95.8, tempo: 68.4 },
+  'SMU Mustangs':                   { adjO: 111.2, adjD: 95.4, tempo: 69.6 },
+  'Southern Methodist Mustangs':    { adjO: 111.2, adjD: 95.4, tempo: 69.6 },
+  'Akron Zips':                     { adjO: 110.2, adjD: 96.4, tempo: 67.8 },
+  'Hofstra Pride':                  { adjO: 108.8, adjD: 97.8, tempo: 66.4 },
+  'Wright State Raiders':           { adjO: 107.4, adjD: 99.2, tempo: 67.2 },
+  'Tennessee State Tigers':         { adjO: 105.8, adjD: 101.6, tempo: 68.6 },
+  'UMBC Retrievers':                { adjO: 104.4, adjD: 103.8, tempo: 66.8 },
+  'Maryland-Baltimore County Retrievers': { adjO: 104.4, adjD: 103.8, tempo: 66.8 },
+  'Howard Bison':                   { adjO: 103.8, adjD: 104.4, tempo: 67.2 },
+  // SOUTH
+  'Vanderbilt Commodores':          { adjO: 116.2, adjD: 91.4, tempo: 67.8 },
+  'Iowa Hawkeyes':                  { adjO: 112.8, adjD: 94.2, tempo: 68.6 },
+  'Troy Trojans':                   { adjO: 108.6, adjD: 97.4, tempo: 67.8 },
+  'Penn Quakers':                   { adjO: 107.2, adjD: 99.8, tempo: 65.6 },
+  'Pennsylvania Quakers':           { adjO: 107.2, adjD: 99.8, tempo: 65.6 },
+  'Idaho Vandals':                  { adjO: 105.6, adjD: 102.2, tempo: 64.8 },
+  'Prairie View A&M Panthers':      { adjO: 103.4, adjD: 105.6, tempo: 67.4 },
+  'Lehigh Mountain Hawks':          { adjO: 104.2, adjD: 104.8, tempo: 65.8 },
 };
 
 // ─── 2026 NCAA Tournament Teams (68-team field) ───────────────────────────────
@@ -617,8 +760,142 @@ function genPick(game, homeInjuries = [], awayInjuries = []) {
   return { tier, conf, pick, pickLabel, reason, totalPick, modelData };
 }
 
+// ─── Stats Modal ──────────────────────────────────────────────────────────────
+function openGameModal(gameId) {
+  const game = gamesStore[gameId];
+  if (!game) return;
+  const { home, away, homeML, awayML } = game;
+  const homeInj = injuriesStore[home] || [];
+  const awayInj = injuriesStore[away] || [];
+  const pick    = genPick(game, homeInj, awayInj);
+  const homeKP  = getKenPom(home);
+  const awayKP  = getKenPom(away);
+
+  // Win probability — use pick's favored side (blended model) not raw odds
+  const oddsProb = winProb(homeML, awayML);
+  let awayWin = oddsProb.away, homeWin = oddsProb.home;
+  if (pick) {
+    const pickFavorsHome = pick.pick === 'home-ml' || pick.pick === 'home-spread';
+    homeWin = pickFavorsHome ? pick.conf : 100 - pick.conf;
+    awayWin = 100 - homeWin;
+  }
+
+  document.getElementById('modal-title').textContent = `${away} vs ${home}`;
+  let html = '';
+
+  // Win probability bar
+  html += `<div class="modal-section">
+    <div class="modal-section-title">Win Probability${pick ? ' (Blended KenPom + Odds)' : ' (Market Odds)'}</div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px">
+      <div><div style="font-size:14px;font-weight:700">${away}</div><div style="font-size:11px;color:var(--muted)">Away · ${fmtML(awayML)}</div></div>
+      <div style="text-align:right"><div style="font-size:14px;font-weight:700">${home}</div><div style="font-size:11px;color:var(--muted)">Home · ${fmtML(homeML)}</div></div>
+    </div>
+    <div style="display:flex;border-radius:6px;overflow:hidden;height:40px">
+      <div style="width:${awayWin}%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0d0f14;min-width:${awayWin>15?'0':'40px'}">${awayWin}%</div>
+      <div style="width:${homeWin}%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0d0f14;min-width:${homeWin>15?'0':'40px'}">${homeWin}%</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--faint)"><span style="color:var(--blue)">■ Away</span><span style="color:var(--green)">■ Home</span></div>
+  </div>`;
+
+  // KenPom stat comparison
+  if (homeKP && awayKP) {
+    const stats = [
+      { label: 'Off. Efficiency (AdjO)', av: awayKP.adjO, hv: homeKP.adjO, higherBetter: true },
+      { label: 'Def. Efficiency (AdjD)', av: awayKP.adjD, hv: homeKP.adjD, higherBetter: false },
+      { label: 'Tempo',                  av: awayKP.tempo, hv: homeKP.tempo, higherBetter: null },
+      { label: 'Net Rating',             av: +(awayKP.adjO - awayKP.adjD).toFixed(1), hv: +(homeKP.adjO - homeKP.adjD).toFixed(1), higherBetter: true },
+    ];
+
+    html += `<div class="modal-section">
+      <div class="modal-section-title">KenPom Efficiency Ratings</div>
+      <div style="display:grid;grid-template-columns:1fr 110px 1fr;gap:4px;margin-bottom:10px;font-size:11px;color:var(--faint)">
+        <span>${away}</span><span style="text-align:center">Stat</span><span style="text-align:right">${home}</span>
+      </div>`;
+
+    for (const s of stats) {
+      const av = +s.av.toFixed(1), hv = +s.hv.toFixed(1);
+      let awayClr, homeClr;
+      if (s.higherBetter === null) {
+        awayClr = homeClr = 'var(--muted)';
+      } else {
+        const awayBetter = s.higherBetter ? av > hv : av < hv;
+        awayClr = awayBetter ? 'var(--green)' : 'var(--red)';
+        homeClr = awayBetter ? 'var(--red)' : 'var(--green)';
+      }
+      // Bar: proportion each team's stat contributes (invert for AdjD since lower=better)
+      const total = av + hv;
+      const awayPct = s.higherBetter === false
+        ? +((hv / total) * 100).toFixed(0)
+        : +((av / total) * 100).toFixed(0);
+      const homePct = 100 - awayPct;
+
+      html += `<div style="margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 110px 1fr;gap:4px;align-items:center;margin-bottom:5px">
+          <span style="font-size:15px;font-weight:700;color:${awayClr}">${av}</span>
+          <span style="font-size:10px;color:var(--muted);text-align:center">${s.label}</span>
+          <span style="font-size:15px;font-weight:700;color:${homeClr};text-align:right">${hv}</span>
+        </div>
+        <div style="display:flex;height:5px;border-radius:3px;overflow:hidden">
+          <div style="width:${awayPct}%;background:${awayClr}"></div>
+          <div style="width:${homePct}%;background:${homeClr}"></div>
+        </div>
+      </div>`;
+    }
+
+    html += `<div style="font-size:10px;color:var(--faint);text-align:center">Higher AdjO = better offense · Lower AdjD = better defense</div>
+    </div>`;
+  } else {
+    html += `<div class="modal-section"><div class="modal-section-title">KenPom Ratings</div><div style="color:var(--muted);font-size:13px">No efficiency data available for this matchup.</div></div>`;
+  }
+
+  // Injury report
+  const allInj = [
+    ...awayInj.map(i => ({ ...i, team: away })),
+    ...homeInj.map(i => ({ ...i, team: home })),
+  ];
+  html += `<div class="modal-section">
+    <div class="modal-section-title">Injury Report</div>`;
+  if (allInj.length) {
+    html += `<div class="injury-row">${allInj.map(i => {
+      const out = (i.status||'').toLowerCase().includes('out') || (i.status||'').toLowerCase().includes('doubtful');
+      return `<span class="inj-badge ${out?'inj-out':'inj-q'}">${i.team}: ${i.player} · ${i.status}</span>`;
+    }).join('')}</div>`;
+  } else {
+    html += `<div style="font-size:13px;color:var(--muted)">No notable injuries reported.</div>`;
+  }
+  html += `</div>`;
+
+  // AI pick recap
+  if (pick) {
+    const tierCls = pick.tier === 'strong' ? 'rec-strong' : 'rec-lean';
+    const lbl     = pick.tier === 'strong' ? 'strong' : 'lean';
+    const clr     = pick.tier === 'strong' ? 'var(--green)' : 'var(--blue)';
+    html += `<div class="modal-section">
+      <div class="modal-section-title">AI Analysis</div>
+      <div class="rec-box ${tierCls}" style="margin-bottom:0">
+        <div class="rec-label ${lbl}">${pick.pickLabel}</div>
+        <div class="rec-text">${pick.reason}</div>
+        <div class="conf-row">
+          <span style="font-size:11px;color:var(--muted)">Confidence</span>
+          <div class="conf-track"><div class="conf-fill" style="width:${pick.conf}%;background:${clr}"></div></div>
+          <span class="conf-pct">${pick.conf}%</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('stats-modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('stats-modal')) return;
+  document.getElementById('stats-modal').classList.remove('open');
+}
+
 // ─── Game Card ────────────────────────────────────────────────────────────────
 function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
+  gamesStore[game.id] = game;
   const { id, home, away, homeML, awayML, spread, total, commence } = game;
   const dt = new Date(commence);
   const timeStr = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ', ' +
@@ -627,8 +904,8 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
   const pick       = genPick(game, homeInjuries, awayInjuries);
   const homeKP     = getKenPom(home);
   const awayKP     = getKenPom(away);
-  const chipCls    = pick ? (pick.tier==='strong' ? 'chip-green' : 'chip-blue') : 'chip-gray';
-  const chipLbl    = pick ? (pick.tier==='strong' ? 'Strong pick' : 'Lean') : 'No pick';
+  const chipCls    = pick ? (pick.tier==='strong' ? 'chip-green' : 'chip-blue') : '';
+  const chipLbl    = pick ? (pick.tier==='strong' ? 'Strong pick' : 'Lean') : '';
   const confColor  = pick?.tier==='strong' ? 'var(--green)' : 'var(--blue)';
 
   const hSpId = id+'-h-sp', aSpId = id+'-a-sp';
@@ -687,7 +964,7 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
   return `<div class="game-card">
     <div class="game-meta">
       <span class="chip chip-gray">NCAA Tournament</span>
-      <span class="chip ${chipCls}">${chipLbl}</span>
+      ${chipLbl ? `<span class="chip ${chipCls}">${chipLbl}</span>` : ''}
       <span class="game-time">${timeStr}</span>
     </div>
 
@@ -700,11 +977,7 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
         <div class="conf-track"><div class="conf-fill" style="width:${pick.conf}%;background:${confColor}"></div></div>
         <span class="conf-pct">${pick.conf}%</span>
       </div>
-    </div>` : `
-    <div class="rec-box rec-toss" style="margin-bottom:14px">
-      <div class="rec-label toss">No recommendation</div>
-      <div class="rec-text">This matchup lacks a clear statistical edge. Sit this one out.</div>
-    </div>`}
+    </div>` : ''}
 
     ${statsHtml}
     ${injuryHtml}
@@ -768,6 +1041,8 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
         Under ${total} <span class="total-note">-110</span>
       </button>
     </div>` : ''}
+
+    <button class="stats-btn" onclick="openGameModal('${id}')">📊 View Team Stats</button>
   </div>`;
 }
 
@@ -788,9 +1063,8 @@ async function fetchOdds() {
     }
 
     const data = await res.json();
-    const tomorrow = new Date();
-    tomorrow.setHours(0, 0, 0, 0);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     const games = data.map(g => {
       const bk      = g.bookmakers?.[0];
@@ -802,7 +1076,7 @@ async function fetchOdds() {
       const spread  = spreads?.outcomes?.find(o=>o.name===g.home_team)?.point ?? null;
       const total   = totals?.outcomes?.[0]?.point ?? null;
       if (!homeML || !awayML) return null;
-      if (new Date(g.commence_time) < tomorrow) return null;
+      if (new Date(g.commence_time) < today) return null;
       if (!inTournamentWindow(g.commence_time)) return null;
       if (!isTournamentGame(g.home_team, g.away_team)) return null;
       return { id: g.id, home: g.home_team, away: g.away_team, homeML, awayML, spread, total, commence: g.commence_time };
@@ -824,6 +1098,7 @@ async function fetchOdds() {
     const injuryMap = {};
     await Promise.all(allTeams.map(async team => {
       injuryMap[team] = await fetchInjuries(team);
+      injuriesStore[team] = injuryMap[team];
     }));
 
     document.getElementById('games-container').innerHTML =
@@ -896,9 +1171,11 @@ function switchTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('tab-games').style.display  = tab==='games'   ? '' : 'none';
-  document.getElementById('tab-futures').style.display = tab==='futures' ? '' : 'none';
+  document.getElementById('tab-games').style.display   = tab==='games'   ? '' : 'none';
+  document.getElementById('tab-futures').style.display  = tab==='futures' ? '' : 'none';
+  document.getElementById('tab-history').style.display  = tab==='history' ? '' : 'none';
   if (tab==='futures') fetchFutures();
+  if (tab==='history') renderHistory();
 }
 
 function addBet(id, label, ml) {
@@ -956,7 +1233,120 @@ function updateTotals() {
   document.getElementById('total-payout').textContent = '$'+tp.toFixed(2);
 }
 
+// ── Bet History ──────────────────────────────────────────────────────────────
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('mm_bet_history')) || []; }
+  catch { return []; }
+}
+
+function saveHistory(h) {
+  localStorage.setItem('mm_bet_history', JSON.stringify(h));
+}
+
+function updateHistoryBadge() {
+  const pending = loadHistory().filter(r => r.status === 'pending').length;
+  const badge = document.getElementById('history-badge');
+  badge.textContent = pending > 0 ? pending : '';
+}
+
+function updateHistoryStats() {
+  const history = loadHistory();
+  const totalWagered = history.reduce((s, r) => s + r.wager, 0);
+  const won  = history.filter(r => r.status === 'won');
+  const lost = history.filter(r => r.status === 'lost');
+  const netPL = won.reduce((s, r) => s + (r.payout - r.wager), 0)
+              - lost.reduce((s, r) => s + r.wager, 0);
+  const settled = won.length + lost.length;
+  const winRate = settled > 0 ? Math.round(won.length / settled * 100) : null;
+
+  document.getElementById('stat-wagered').textContent = '$' + totalWagered.toFixed(2);
+
+  const plEl = document.getElementById('stat-pl');
+  plEl.textContent = (netPL >= 0 ? '+' : '') + '$' + netPL.toFixed(2);
+  plEl.style.color = netPL > 0 ? 'var(--green)' : netPL < 0 ? 'var(--red)' : 'var(--muted)';
+
+  const wrEl = document.getElementById('stat-winrate');
+  if (winRate === null) {
+    wrEl.textContent = '—';
+    wrEl.style.color = 'var(--muted)';
+  } else {
+    wrEl.textContent = winRate + '%';
+    wrEl.style.color = winRate >= 55 ? 'var(--green)' : winRate >= 40 ? 'var(--amber)' : 'var(--red)';
+  }
+}
+
+function renderHistory() {
+  updateHistoryStats();
+  const history = loadHistory();
+  const list = document.getElementById('hist-list');
+  if (!history.length) {
+    list.innerHTML = '<div class="empty-state">No bets placed yet. Place your first bet to see history here.</div>';
+    return;
+  }
+  list.innerHTML = history.map(r => {
+    const date = new Date(r.placedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const netStr = r.status === 'won'
+      ? `<div class="hist-result" style="color:var(--green)">+$${(r.payout - r.wager).toFixed(2)} net</div>`
+      : r.status === 'lost'
+      ? `<div class="hist-result" style="color:var(--red)">-$${r.wager.toFixed(2)} net</div>`
+      : `<div class="hist-actions">
+           <button class="mark-btn mark-won" onclick="markBet('${r.id}','won')">Won</button>
+           <button class="mark-btn mark-lost" onclick="markBet('${r.id}','lost')">Lost</button>
+         </div>`;
+    return `<div class="hist-card">
+      <div class="hist-card-header">
+        <div>
+          <div class="hist-card-label">${r.label}</div>
+          <div class="hist-card-meta">${fmtML(r.ml)} · ${date}</div>
+        </div>
+        <span class="chip status-${r.status}">${r.status}</span>
+      </div>
+      <div class="hist-card-amounts">
+        <div class="hist-amount-block">
+          <span class="hist-amount-label">Wagered</span>
+          <span class="hist-amount-val">$${r.wager.toFixed(2)}</span>
+        </div>
+        <div class="hist-amount-block">
+          <span class="hist-amount-label">To Win</span>
+          <span class="hist-amount-val" style="color:var(--green)">$${r.payout.toFixed(2)}</span>
+        </div>
+      </div>
+      ${netStr}
+    </div>`;
+  }).join('');
+}
+
+function markBet(histId, status) {
+  const history = loadHistory();
+  const record = history.find(r => r.id === histId);
+  if (record) { record.status = status; saveHistory(history); }
+  renderHistory();
+  updateHistoryBadge();
+}
+
+function clearHistory() {
+  if (!confirm('Clear all bet history? This cannot be undone.')) return;
+  saveHistory([]);
+  renderHistory();
+  updateHistoryBadge();
+}
+
 function placeBets() {
+  const history = loadHistory();
+  Object.entries(bets).forEach(([key, b]) => {
+    history.unshift({
+      id: 'hist_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      placedAt: new Date().toISOString(),
+      label: b.label,
+      ml: b.ml,
+      wager: b.wager,
+      payout: parseFloat(calcPayout(b.ml, b.wager)),
+      status: 'pending'
+    });
+  });
+  saveHistory(history);
+  updateHistoryBadge();
   bets = {};
   renderSlip();
   document.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));
@@ -966,6 +1356,7 @@ function placeBets() {
 }
 
 fetchOdds();
+updateHistoryBadge();
 </script>
 </body>
 </html>
