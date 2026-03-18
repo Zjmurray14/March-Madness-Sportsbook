@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>March Madness 2026 · Sportsbook</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -256,6 +257,29 @@
 </head>
 <body>
 
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);padding:32px;width:100%;max-width:340px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;justify-content:center">
+      <div class="logo-icon">🏀</div>
+      <div>
+        <div class="logo-text">March Madness 2026</div>
+        <div class="logo-sub">Sign in to continue</div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Email</div>
+      <input id="login-email" type="email" placeholder="your@email.com" style="width:100%;background:var(--bg);border:0.5px solid var(--faint);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()" />
+    </div>
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Password</div>
+      <input id="login-password" type="password" placeholder="••••••••" style="width:100%;background:var(--bg);border:0.5px solid var(--faint);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;color:var(--text);font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <div id="login-error" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none"></div>
+    <button id="login-btn" onclick="doLogin()" style="width:100%;padding:12px;background:var(--green);color:#0d0f14;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Sign In</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
 <div class="layout">
   <div class="main">
     <div class="header">
@@ -273,6 +297,7 @@
             <span id="status-text">Loading...</span>
           </div>
           <button class="refresh-btn" onclick="fetchOdds()">↻ Refresh</button>
+          <button class="refresh-btn" onclick="doLogout()">Sign out</button>
         </div>
       </div>
       <div class="quota-bar" id="quota-bar"></div>
@@ -354,8 +379,17 @@
 
 <div class="toast" id="toast">Bets placed! Good luck! 🏀</div>
 
+</div><!-- /#app -->
+
 <script>
 const API_KEY = '128b7d366566d73648d5b5a3a476fa99';
+
+const SUPABASE_URL = 'https://mbdzhurgdhvjexesmhfe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_65v0-Dg3h37bDGtU2Y_qvw_YyfTIdSU';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+
 let bets = {};
 let currentTab = 'games';
 let gamesStore = {};
@@ -1052,6 +1086,53 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
   </div>`;
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function checkAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    showApp();
+  } else {
+    showLogin();
+  }
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  fetchOdds();
+  updateHistoryBadge();
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
+  errEl.style.display = 'none';
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  btn.textContent = 'Sign In';
+  btn.disabled = false;
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session.user;
+  showApp();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  bets = {};
+  showLogin();
+}
+
 async function fetchOdds() {
   setStatus('loading', 'Fetching live odds...');
   document.getElementById('games-container').innerHTML = '<div class="loading-state"><div class="spinner"></div><div>Loading live lines...</div></div>';
@@ -1241,23 +1322,42 @@ function updateTotals() {
 
 // ── Bet History ──────────────────────────────────────────────────────────────
 
-function loadHistory() {
-  try { return JSON.parse(localStorage.getItem('mm_bet_history')) || []; }
-  catch { return []; }
+async function loadHistory() {
+  if (!currentUser) return [];
+  const { data, error } = await sb.from('bets').select('*').order('placed_at', { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data.map(r => ({
+    id: r.id, placedAt: r.placed_at, label: r.label,
+    ml: r.ml, wager: r.wager, payout: r.payout, status: r.status
+  }));
 }
 
-function saveHistory(h) {
-  localStorage.setItem('mm_bet_history', JSON.stringify(h));
+async function saveBet(record) {
+  if (!currentUser) return;
+  await sb.from('bets').insert({
+    id: record.id, placed_at: record.placedAt, label: record.label,
+    ml: record.ml, wager: record.wager, payout: record.payout,
+    status: record.status, user_id: currentUser.id
+  });
 }
 
-function updateHistoryBadge() {
-  const pending = loadHistory().filter(r => r.status === 'pending').length;
+async function updateBetStatus(histId, status) {
+  await sb.from('bets').update({ status }).eq('id', histId);
+}
+
+async function deleteAllBets() {
+  if (!currentUser) return;
+  await sb.from('bets').delete().eq('user_id', currentUser.id);
+}
+
+async function updateHistoryBadge() {
+  const history = await loadHistory();
+  const pending = history.filter(r => r.status === 'pending').length;
   const badge = document.getElementById('history-badge');
   badge.textContent = pending > 0 ? pending : '';
 }
 
-function updateHistoryStats() {
-  const history = loadHistory();
+function updateHistoryStats(history) {
   const totalWagered = history.reduce((s, r) => s + r.wager, 0);
   const won  = history.filter(r => r.status === 'won');
   const lost = history.filter(r => r.status === 'lost');
@@ -1282,9 +1382,9 @@ function updateHistoryStats() {
   }
 }
 
-function renderHistory() {
-  updateHistoryStats();
-  const history = loadHistory();
+async function renderHistory() {
+  const history = await loadHistory();
+  updateHistoryStats(history);
   const list = document.getElementById('hist-list');
   if (!history.length) {
     list.innerHTML = '<div class="empty-state">No bets placed yet. Place your first bet to see history here.</div>';
@@ -1323,36 +1423,31 @@ function renderHistory() {
   }).join('');
 }
 
-function markBet(histId, status) {
-  const history = loadHistory();
-  const record = history.find(r => r.id === histId);
-  if (record) { record.status = status; saveHistory(history); }
+async function markBet(histId, status) {
+  await updateBetStatus(histId, status);
   renderHistory();
   updateHistoryBadge();
 }
 
-function clearHistory() {
+async function clearHistory() {
   if (!confirm('Clear all bet history? This cannot be undone.')) return;
-  saveHistory([]);
+  await deleteAllBets();
   renderHistory();
   updateHistoryBadge();
 }
 
-function placeBets() {
-  const history = loadHistory();
-  Object.entries(bets).forEach(([key, b]) => {
-    history.unshift({
-      id: 'hist_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      placedAt: new Date().toISOString(),
-      label: b.label,
-      ml: b.ml,
-      wager: b.wager,
-      payout: parseFloat(calcPayout(b.ml, b.wager)),
-      status: 'pending'
-    });
-  });
-  saveHistory(history);
-  updateHistoryBadge();
+async function placeBets() {
+  const records = Object.entries(bets).map(([key, b]) => ({
+    id: 'hist_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    placedAt: new Date().toISOString(),
+    label: b.label,
+    ml: b.ml,
+    wager: b.wager,
+    payout: parseFloat(calcPayout(b.ml, b.wager)),
+    status: 'pending'
+  }));
+  await Promise.all(records.map(r => saveBet(r)));
+  await updateHistoryBadge();
   bets = {};
   renderSlip();
   document.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));
@@ -1361,8 +1456,7 @@ function placeBets() {
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-fetchOdds();
-updateHistoryBadge();
+checkAuth();
 </script>
 </body>
 </html>
