@@ -996,11 +996,17 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
 
     ${homeSpreadVal ? `
     <div class="odds-section-label">Spread · Moneyline</div>
-    <div class="odds-row">
+    <div class="odds-row" style="grid-template-columns:repeat(4,1fr)">
       <button class="odds-btn ${isASp?'rec-highlight':''}" data-bet="${aSpId}" onclick="addBet('${aSpId}','${away} ${awaySpreadVal}','-110')">
         ${isASp?'<span class="ai-tag">AI</span>':''}
         <span class="ob-label">${away}</span>
         <span class="ob-val dog">${awaySpreadVal}</span>
+        <span style="font-size:11px;color:var(--muted)">-110</span>
+      </button>
+      <button class="odds-btn ${isHSp?'rec-highlight':''}" data-bet="${hSpId}" onclick="addBet('${hSpId}','${home} ${homeSpreadVal}','-110')">
+        ${isHSp?'<span class="ai-tag">AI</span>':''}
+        <span class="ob-label">${home}</span>
+        <span class="ob-val fav">${homeSpreadVal}</span>
         <span style="font-size:11px;color:var(--muted)">-110</span>
       </button>
       <button class="odds-btn ${isAML?'rec-highlight':''}" data-bet="${aMLId}" onclick="addBet('${aMLId}','${away} ML','${awayML}')">
