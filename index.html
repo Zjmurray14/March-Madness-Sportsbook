@@ -307,6 +307,7 @@
       <button class="tab active" onclick="switchTab('games',this)">Games &amp; Lines</button>
       <button class="tab" onclick="switchTab('futures',this)">Championship Futures</button>
       <button class="tab" onclick="switchTab('history',this)">Bet History<span class="tab-badge" id="history-badge"></span></button>
+      <button class="tab" onclick="switchTab('aipicks',this)">Today's AI Picks</button>
     </div>
 
     <div id="tab-games">
@@ -344,6 +345,12 @@
         </div>
       </div>
       <div id="hist-list"><div class="empty-state">No bets placed yet. Place your first bet to see history here.</div></div>
+    </div>
+
+    <div id="tab-aipicks" style="display:none">
+      <div id="aipicks-container">
+        <div class="loading-state"><div class="spinner"></div><div>Analyzing today's games...</div></div>
+      </div>
     </div>
   </div>
 
@@ -1193,6 +1200,7 @@ async function fetchOdds() {
 
     const now = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     setStatus('live', `Live · ${games.length} game${games.length!==1?'s':''} · Updated ${now}`);
+    if (currentTab === 'aipicks') renderAIPicks();
   } catch(e) {
     setStatus('error', 'Error loading odds');
     document.getElementById('games-container').innerHTML = `<div class="error-state">
@@ -1258,11 +1266,134 @@ function switchTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('tab-games').style.display   = tab==='games'   ? '' : 'none';
-  document.getElementById('tab-futures').style.display  = tab==='futures' ? '' : 'none';
-  document.getElementById('tab-history').style.display  = tab==='history' ? '' : 'none';
-  if (tab==='futures') fetchFutures();
-  if (tab==='history') renderHistory();
+  document.getElementById('tab-games').style.display    = tab==='games'    ? '' : 'none';
+  document.getElementById('tab-futures').style.display  = tab==='futures'  ? '' : 'none';
+  document.getElementById('tab-history').style.display  = tab==='history'  ? '' : 'none';
+  document.getElementById('tab-aipicks').style.display  = tab==='aipicks'  ? '' : 'none';
+  if (tab==='futures')  fetchFutures();
+  if (tab==='history')  renderHistory();
+  if (tab==='aipicks')  renderAIPicks();
+}
+
+function renderAIPicks() {
+  const container = document.getElementById('aipicks-container');
+
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayEnd   = new Date(todayStart); todayEnd.setDate(todayEnd.getDate()+1);
+
+  const todaysGames = Object.values(gamesStore).filter(g => {
+    const d = new Date(g.commence);
+    return d >= todayStart && d < todayEnd;
+  });
+
+  if (!todaysGames.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div style="font-size:32px;margin-bottom:12px">🤖</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">No picks for today</div>
+      <div style="color:var(--muted);font-size:13px">No today's games found. Check back as lines are posted.</div>
+    </div>`;
+    return;
+  }
+
+  const candidates = [];
+
+  for (const game of todaysGames) {
+    const homeInj = injuriesStore[game.home] || [];
+    const awayInj = injuriesStore[game.away] || [];
+    const result  = genPick(game, homeInj, awayInj);
+    if (!result) continue;
+
+    const { id, home, away, homeML, awayML, spread, total } = game;
+    const favIsHome       = result.pick === 'home-ml' || result.pick === 'home-spread';
+    const isPrimarySpread = result.pick === 'home-spread' || result.pick === 'away-spread';
+
+    // Primary pick (spread or ML)
+    const primaryBetId = isPrimarySpread
+      ? (result.pick === 'home-spread' ? id+'-h-sp' : id+'-a-sp')
+      : (result.pick === 'home-ml'     ? id+'-h-ml' : id+'-a-ml');
+    const primaryML = isPrimarySpread ? -110 : (favIsHome ? homeML : awayML);
+
+    candidates.push({ betId: primaryBetId, label: result.pickLabel, ml: primaryML,
+      conf: result.conf, reason: result.reason, type: isPrimarySpread ? 'spread' : 'ml',
+      tier: result.tier, game });
+
+    // Same-direction ML (if primary was spread and not a prohibitive favorite)
+    if (isPrimarySpread) {
+      const mlVal = favIsHome ? homeML : awayML;
+      if (mlVal >= -220) {
+        const mlBetId = favIsHome ? id+'-h-ml' : id+'-a-ml';
+        candidates.push({ betId: mlBetId, label: (favIsHome ? home : away) + ' ML', ml: mlVal,
+          conf: result.conf, reason: result.reason, type: 'ml', tier: result.tier, game });
+      }
+    }
+
+    // Total pick
+    if (result.totalPick && total != null) {
+      const isOver = result.totalPick.side === 'over';
+      candidates.push({ betId: isOver ? id+'-ov' : id+'-un',
+        label: `${away} vs ${home} ${isOver ? 'Over' : 'Under'} ${total}`, ml: -110,
+        conf: result.totalPick.conf, reason: result.totalPick.reason, type: 'total',
+        tier: result.totalPick.conf >= 60 ? 'strong' : 'lean', game });
+    }
+  }
+
+  if (!candidates.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div style="font-size:32px;margin-bottom:12px">🤖</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">No strong picks today</div>
+      <div style="color:var(--muted);font-size:13px">Today's matchups are too close to call. Check Games &amp; Lines for all odds.</div>
+    </div>`;
+    return;
+  }
+
+  candidates.sort((a,b) => b.conf - a.conf);
+  const topPicks = candidates.slice(0,5);
+  const typeLabel = { spread:'Spread', ml:'Moneyline', total:'Over/Under' };
+
+  const html = topPicks.map((p,i) => {
+    const confColor = p.tier==='strong' ? 'var(--green)' : 'var(--blue)';
+    const rankColor = i===0 ? 'var(--green)' : i===1 ? 'var(--blue)' : 'var(--muted)';
+    const dt = new Date(p.game.commence);
+    const timeStr = dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+    const safeLabel = p.label.replace(/'/g,"\\'");
+
+    return `<div class="game-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:28px;height:28px;border-radius:50%;background:${rankColor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0d0f14;flex-shrink:0">${i+1}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:${confColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.label}</div>
+          <div style="font-size:11px;color:var(--muted)">${p.game.away} vs ${p.game.home} · ${timeStr}</div>
+        </div>
+        <span class="chip ${p.tier==='strong'?'chip-green':'chip-blue'}">${typeLabel[p.type]}</span>
+      </div>
+      <div class="rec-box ${p.tier==='strong'?'rec-strong':'rec-lean'}" style="margin-bottom:10px">
+        <div class="rec-text">${p.reason}</div>
+        <div class="conf-row">
+          <span style="font-size:11px;color:var(--muted)">Confidence</span>
+          <div class="conf-track" style="max-width:160px">
+            <div class="conf-fill" style="width:${p.conf}%;background:${confColor}"></div>
+          </div>
+          <span class="conf-pct" style="font-weight:700;color:${confColor}">${p.conf}%</span>
+        </div>
+      </div>
+      <button class="odds-btn" data-bet="${p.betId}" onclick="addBet('${p.betId}','${safeLabel}',${p.ml})"
+        style="width:100%;padding:10px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>+ Add to Slip</span>
+        <span style="color:var(--muted);font-size:12px">${p.ml>0?'+'+p.ml:p.ml}</span>
+      </button>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:700">Today's AI Picks</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Top ${topPicks.length} picks · KenPom + market model</div>
+      </div>
+      <span class="chip chip-green">${topPicks.length} picks</span>
+    </div>
+    ${html}
+    <div style="text-align:center;font-size:11px;color:var(--faint);margin-top:16px">For entertainment only. Past performance does not guarantee future results.</div>`;
 }
 
 function addBet(id, label, ml) {
