@@ -670,18 +670,20 @@ async function fetchInjuries(teamName) {
   try {
     await loadESPNTeamMap();
     const id = findESPNId(teamName);
-    if (!id) return [];
+    if (!id) { console.warn('[injuries] no ESPN ID for:', teamName); return []; }
     const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}/injuries`);
-    if (!res.ok) return [];
+    if (!res.ok) { console.warn('[injuries] fetch failed for:', teamName, res.status); return []; }
     const data = await res.json();
-    const injuries = (data.injuries || []).map(i => ({
-      player: i.athlete?.displayName,
-      status: i.status || 'Questionable',
-      type:   i.details?.type || '',
+    console.log('[injuries] raw response for', teamName, data);
+    const rawList = data.injuries || data.items || [];
+    const injuries = rawList.map(i => ({
+      player: i.athlete?.displayName || i.athlete?.fullName,
+      status: i.status || i.type || 'Questionable',
+      type:   i.details?.type || i.injury?.type || '',
     })).filter(i => i.player);
     injuryCache[teamName] = injuries;
     return injuries;
-  } catch { return []; }
+  } catch(e) { console.error('[injuries] error for:', teamName, e); return []; }
 }
 
 function calcInjurySeverity(injuries) {
@@ -812,13 +814,20 @@ function openGameModal(gameId) {
   const homeKP  = getKenPom(home);
   const awayKP  = getKenPom(away);
 
-  // Win probability — use pick's favored side (blended model) not raw odds
+  // Win probability — always blend KenPom + market when data is available
   const oddsProb = winProb(homeML, awayML);
   let awayWin = oddsProb.away, homeWin = oddsProb.home;
-  if (pick) {
-    const pickFavorsHome = pick.pick === 'home-ml' || pick.pick === 'home-spread';
-    homeWin = pickFavorsHome ? pick.conf : 100 - pick.conf;
-    awayWin = 100 - homeWin;
+  let isBlended = false;
+  if (homeKP && awayKP) {
+    const homeInjSev = calcInjurySeverity(homeInj);
+    const awayInjSev = calcInjurySeverity(awayInj);
+    const hAdjO  = homeKP.adjO - homeInjSev * 1.5;
+    const aAdjO  = awayKP.adjO - awayInjSev * 1.5;
+    const emDiff = (hAdjO - homeKP.adjD) - (aAdjO - awayKP.adjD);
+    const kpWinHome = Math.max(10, Math.min(90, 50 + (emDiff / 3) * 10));
+    homeWin  = Math.round(kpWinHome * 0.60 + oddsProb.home * 0.40);
+    awayWin  = 100 - homeWin;
+    isBlended = true;
   }
 
   document.getElementById('modal-title').textContent = `${away} vs ${home}`;
@@ -826,7 +835,7 @@ function openGameModal(gameId) {
 
   // Win probability bar
   html += `<div class="modal-section">
-    <div class="modal-section-title">Win Probability${pick ? ' (Blended KenPom + Odds)' : ' (Market Odds)'}</div>
+    <div class="modal-section-title">Win Probability (${isBlended ? 'Blended KenPom + Odds' : 'Market Odds'})</div>
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px">
       <div><div style="font-size:14px;font-weight:700">${away}</div><div style="font-size:11px;color:var(--muted)">Away · ${fmtML(awayML)}</div></div>
       <div style="text-align:right"><div style="font-size:14px;font-weight:700">${home}</div><div style="font-size:11px;color:var(--muted)">Home · ${fmtML(homeML)}</div></div>
