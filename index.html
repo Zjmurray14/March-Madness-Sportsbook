@@ -686,16 +686,22 @@ async function fetchInjuries(teamName) {
     await loadESPNTeamMap();
     const id = findESPNId(teamName);
     if (!id) { console.warn('[injuries] no ESPN ID for:', teamName); return []; }
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}/injuries`);
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}/roster`);
     if (!res.ok) { console.warn('[injuries] fetch failed for:', teamName, res.status); return []; }
     const data = await res.json();
     console.log('[injuries] raw response for', teamName, data);
-    const rawList = data.injuries || data.items || [];
-    const injuries = rawList.map(i => ({
-      player: i.athlete?.displayName || i.athlete?.fullName,
-      status: i.status || i.type || 'Questionable',
-      type:   i.details?.type || i.injury?.type || '',
-    })).filter(i => i.player);
+    const athletes = data.athletes || [];
+    const injuries = athletes
+      .filter(a => {
+        const statusType = (a.status?.type || '').toLowerCase();
+        return statusType !== 'active' || (a.injuries && a.injuries.length > 0);
+      })
+      .map(a => ({
+        player: a.displayName || a.fullName,
+        status: a.status?.name || (a.injuries?.[0]?.status) || 'Questionable',
+        type:   a.injuries?.[0]?.details?.type || '',
+      }))
+      .filter(a => a.player);
     injuryCache[teamName] = injuries;
     return injuries;
   } catch(e) { console.error('[injuries] error for:', teamName, e); return []; }
