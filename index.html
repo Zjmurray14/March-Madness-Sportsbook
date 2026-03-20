@@ -253,6 +253,17 @@
     .hist-stats { grid-template-columns: 1fr 1fr; }
     .hist-stats .hist-stat:last-child { grid-column: span 2; }
   }
+
+  /* Claude AI */
+  .claude-tag { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: #7c3aed; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; white-space: nowrap; font-weight: 700; }
+  .claude-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(124,58,237,0.12); color: #a78bfa; border: 0.5px solid rgba(124,58,237,0.35); font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .apikey-card { background: var(--surface); border: 0.5px solid rgba(124,58,237,0.3); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .apikey-input { width: 100%; background: var(--bg); border: 0.5px solid var(--faint); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 13px; color: var(--text); font-family: inherit; outline: none; margin-bottom: 10px; }
+  .apikey-input:focus { border-color: #7c3aed; }
+  .apikey-save-btn { background: #7c3aed; color: #fff; border: none; border-radius: var(--radius-sm); padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
+  .apikey-save-btn:hover { opacity: 0.9; }
+  .apikey-clear-btn { background: none; border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: inherit; margin-left: 6px; transition: all 0.12s; }
+  .apikey-clear-btn:hover { border-color: rgba(242,92,92,0.35); color: var(--red); }
 </style>
 </head>
 <body>
@@ -401,6 +412,9 @@ let bets = {};
 let currentTab = 'games';
 let gamesStore = {};
 let injuriesStore = {};
+let gamesListStore = [];
+const claudeAnalysisStore = {};
+let ANTHROPIC_API_KEY = localStorage.getItem('anthropic_api_key') || '';
 
 // ─── KenPom-style efficiency ratings ─────────────────────────────────────────
 // AdjO: Adjusted Offensive Efficiency (pts per 100 possessions, higher = better)
@@ -951,12 +965,13 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
   const timeStr = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ', ' +
     dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
 
-  const pick       = genPick(game, homeInjuries, awayInjuries);
+  const pick       = getActivePick(game, homeInjuries, awayInjuries);
   const homeKP     = getKenPom(home);
   const awayKP     = getKenPom(away);
   const chipCls    = pick ? (pick.tier==='strong' ? 'chip-green' : 'chip-blue') : '';
   const chipLbl    = pick ? (pick.tier==='strong' ? 'Strong pick' : 'Lean') : '';
   const confColor  = pick?.tier==='strong' ? 'var(--green)' : 'var(--blue)';
+  const pickTag    = pick ? (pick.fromClaude ? '<span class="claude-tag">Claude</span>' : '<span class="ai-tag">AI</span>') : '';
 
   const hSpId = id+'-h-sp', aSpId = id+'-a-sp';
   const hMLId = id+'-h-ml', aMLId = id+'-a-ml';
@@ -1020,7 +1035,7 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
 
     ${pick ? `
     <div class="rec-box ${pick.tier==='strong' ? 'rec-strong' : 'rec-lean'}">
-      <div class="rec-label ${pick.tier}">AI Pick: ${pick.pickLabel}</div>
+      <div class="rec-label ${pick.tier}">${pick.fromClaude ? 'Claude Pick' : 'AI Pick'}: ${pick.pickLabel}</div>
       <div class="rec-text">${pick.reason}</div>
       <div class="conf-row">
         <span style="font-size:11px;color:var(--muted)">Confidence</span>
@@ -1048,24 +1063,24 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
     <div class="odds-section-label">Spread · Moneyline</div>
     <div class="odds-row" style="grid-template-columns:repeat(4,1fr)">
       <button class="odds-btn ${isASp?'rec-highlight':''}" data-bet="${aSpId}" onclick="addBet('${aSpId}','${away} ${awaySpreadVal}','-110')">
-        ${isASp?'<span class="ai-tag">AI</span>':''}
+        ${isASp?pickTag:''}
         <span class="ob-label">${away}</span>
         <span class="ob-val dog">${awaySpreadVal}</span>
         <span style="font-size:11px;color:var(--muted)">-110</span>
       </button>
       <button class="odds-btn ${isHSp?'rec-highlight':''}" data-bet="${hSpId}" onclick="addBet('${hSpId}','${home} ${homeSpreadVal}','-110')">
-        ${isHSp?'<span class="ai-tag">AI</span>':''}
+        ${isHSp?pickTag:''}
         <span class="ob-label">${home}</span>
         <span class="ob-val fav">${homeSpreadVal}</span>
         <span style="font-size:11px;color:var(--muted)">-110</span>
       </button>
       <button class="odds-btn ${isAML?'rec-highlight':''}" data-bet="${aMLId}" onclick="addBet('${aMLId}','${away} ML','${awayML}')">
-        ${isAML?'<span class="ai-tag">AI</span>':''}
+        ${isAML?pickTag:''}
         <span class="ob-label">${away} ML</span>
         <span class="ob-val ${awayML<0?'fav':'dog'}">${fmtML(awayML)}</span>
       </button>
       <button class="odds-btn ${isHML?'rec-highlight':''}" data-bet="${hMLId}" onclick="addBet('${hMLId}','${home} ML','${homeML}')">
-        ${isHML?'<span class="ai-tag">AI</span>':''}
+        ${isHML?pickTag:''}
         <span class="ob-label">${home} ML</span>
         <span class="ob-val ${homeML<0?'fav':'dog'}">${fmtML(homeML)}</span>
       </button>
@@ -1073,12 +1088,12 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
     <div class="odds-section-label">Moneyline</div>
     <div class="odds-row" style="grid-template-columns:1fr 1fr">
       <button class="odds-btn ${isAML?'rec-highlight':''}" data-bet="${aMLId}" onclick="addBet('${aMLId}','${away} ML','${awayML}')">
-        ${isAML?'<span class="ai-tag">AI</span>':''}
+        ${isAML?pickTag:''}
         <span class="ob-label">${away}</span>
         <span class="ob-val ${awayML<0?'fav':'dog'}">${fmtML(awayML)}</span>
       </button>
       <button class="odds-btn ${isHML?'rec-highlight':''}" data-bet="${hMLId}" onclick="addBet('${hMLId}','${home} ML','${homeML}')">
-        ${isHML?'<span class="ai-tag">AI</span>':''}
+        ${isHML?pickTag:''}
         <span class="ob-label">${home}</span>
         <span class="ob-val ${homeML<0?'fav':'dog'}">${fmtML(homeML)}</span>
       </button>
@@ -1089,11 +1104,11 @@ function renderGameCard(game, homeInjuries = [], awayInjuries = []) {
     <div class="odds-section-label">Total · O/U ${total} &nbsp;<span style="color:${confColor}">AI: ${pick.totalPick.side.toUpperCase()} (${pick.totalPick.conf}%)</span></div>
     <div class="totals-row">
       <button class="total-btn ${isOv?'rec-highlight':''}" data-bet="${ovId}" onclick="addBet('${ovId}','${away} vs ${home} Over ${total}','-110')">
-        ${isOv?'<span class="ai-tag">AI</span>':''}
+        ${isOv?pickTag:''}
         Over ${total} <span class="total-note">-110</span>
       </button>
       <button class="total-btn ${!isOv?'rec-highlight':''}" data-bet="${unId}" onclick="addBet('${unId}','${away} vs ${home} Under ${total}','-110')">
-        ${!isOv?'<span class="ai-tag">AI</span>':''}
+        ${!isOv?pickTag:''}
         Under ${total} <span class="total-note">-110</span>
       </button>
     </div>` : ''}
@@ -1169,6 +1184,7 @@ async function fetchOdds() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    gamesListStore = [];
     const games = data.map(g => {
       const bk      = g.bookmakers?.[0];
       const h2h     = bk?.markets?.find(m=>m.key==='h2h');
@@ -1207,9 +1223,11 @@ async function fetchOdds() {
     document.getElementById('games-container').innerHTML =
       games.map(g => renderGameCard(g, injuryMap[g.home] || [], injuryMap[g.away] || [])).join('');
 
+    gamesListStore = games;
     const now = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     setStatus('live', `Live · ${games.length} game${games.length!==1?'s':''} · Updated ${now}`);
     if (currentTab === 'aipicks') renderAIPicks();
+    fetchClaudeAnalysis(games); // non-blocking — updates cards when Claude responds
   } catch(e) {
     setStatus('error', 'Error loading odds');
     document.getElementById('games-container').innerHTML = `<div class="error-state">
@@ -1286,68 +1304,55 @@ function switchTab(tab, btn) {
 
 function renderAIPicks() {
   const container = document.getElementById('aipicks-container');
+  const hasKey = !!ANTHROPIC_API_KEY;
+  const hasClaudeData = Object.keys(claudeAnalysisStore).length > 0;
+
+  const apiKeySection = !hasKey ? `
+    <div class="apikey-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:20px">🤖</span>
+        <div style="font-size:14px;font-weight:700">Connect Claude AI</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Add your Anthropic API key to enable real AI analysis. Claude will reason through the odds, KenPom data, and injuries to identify genuine edges — not just rules.</div>
+      <input type="password" class="apikey-input" id="apikey-input" placeholder="sk-ant-api03-..." />
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="apikey-save-btn" onclick="saveApiKey()">Enable Claude AI</button>
+        <span style="font-size:11px;color:var(--faint)">Stored only in your browser</span>
+      </div>
+    </div>` : '';
+
+  const settingsRow = hasKey ? `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+      <span class="claude-badge">Claude AI Active</span>
+      <button class="apikey-clear-btn" onclick="clearApiKey()" style="font-size:11px;padding:3px 8px">Clear Key</button>
+    </div>` : '';
+
+  const loadingBanner = hasKey && !hasClaudeData ? `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(124,58,237,0.08);border:0.5px solid rgba(124,58,237,0.25);border-radius:var(--radius-sm);margin-bottom:14px;font-size:12px;color:#a78bfa">
+      <div class="spinner" style="width:14px;height:14px;border-width:1.5px;border-top-color:#a78bfa;flex-shrink:0"></div>
+      Claude is analyzing today's games...
+    </div>` : '';
 
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const todayEnd   = new Date(todayStart); todayEnd.setDate(todayEnd.getDate()+1);
-
   const todaysGames = Object.values(gamesStore).filter(g => {
     const d = new Date(g.commence);
     return d >= todayStart && d < todayEnd;
   });
 
   if (!todaysGames.length) {
-    container.innerHTML = `<div class="empty-state">
-      <div style="font-size:32px;margin-bottom:12px">🤖</div>
+    container.innerHTML = apiKeySection + loadingBanner + `<div class="empty-state">
+      <div style="font-size:32px;margin-bottom:12px">🏀</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px">No picks for today</div>
       <div style="color:var(--muted);font-size:13px">No today's games found. Check back as lines are posted.</div>
     </div>`;
     return;
   }
 
-  const candidates = [];
-
-  for (const game of todaysGames) {
-    const homeInj = injuriesStore[game.home] || [];
-    const awayInj = injuriesStore[game.away] || [];
-    const result  = genPick(game, homeInj, awayInj);
-    if (!result) continue;
-
-    const { id, home, away, homeML, awayML, spread, total } = game;
-    const favIsHome       = result.pick === 'home-ml' || result.pick === 'home-spread';
-    const isPrimarySpread = result.pick === 'home-spread' || result.pick === 'away-spread';
-
-    // Primary pick (spread or ML)
-    const primaryBetId = isPrimarySpread
-      ? (result.pick === 'home-spread' ? id+'-h-sp' : id+'-a-sp')
-      : (result.pick === 'home-ml'     ? id+'-h-ml' : id+'-a-ml');
-    const primaryML = isPrimarySpread ? -110 : (favIsHome ? homeML : awayML);
-
-    candidates.push({ betId: primaryBetId, label: result.pickLabel, ml: primaryML,
-      conf: result.conf, reason: result.reason, type: isPrimarySpread ? 'spread' : 'ml',
-      tier: result.tier, game });
-
-    // Same-direction ML (if primary was spread and not a prohibitive favorite)
-    if (isPrimarySpread) {
-      const mlVal = favIsHome ? homeML : awayML;
-      if (mlVal >= -220) {
-        const mlBetId = favIsHome ? id+'-h-ml' : id+'-a-ml';
-        candidates.push({ betId: mlBetId, label: (favIsHome ? home : away) + ' ML', ml: mlVal,
-          conf: result.conf, reason: result.reason, type: 'ml', tier: result.tier, game });
-      }
-    }
-
-    // Total pick
-    if (result.totalPick && total != null) {
-      const isOver = result.totalPick.side === 'over';
-      candidates.push({ betId: isOver ? id+'-ov' : id+'-un',
-        label: `${away} vs ${home} ${isOver ? 'Over' : 'Under'} ${total}`, ml: -110,
-        conf: result.totalPick.conf, reason: result.totalPick.reason, type: 'total',
-        tier: result.totalPick.conf >= 60 ? 'strong' : 'lean', game });
-    }
-  }
+  const candidates = getCandidatesForPicksTab(todaysGames);
 
   if (!candidates.length) {
-    container.innerHTML = `<div class="empty-state">
+    container.innerHTML = apiKeySection + settingsRow + loadingBanner + `<div class="empty-state">
       <div style="font-size:32px;margin-bottom:12px">🤖</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px">No strong picks today</div>
       <div style="color:var(--muted);font-size:13px">Today's matchups are too close to call. Check Games &amp; Lines for all odds.</div>
@@ -1358,6 +1363,7 @@ function renderAIPicks() {
   candidates.sort((a,b) => b.conf - a.conf);
   const topPicks = candidates.slice(0,5);
   const typeLabel = { spread:'Spread', ml:'Moneyline', total:'Over/Under' };
+  const usingClaude = topPicks.some(p => p.fromClaude);
 
   const html = topPicks.map((p,i) => {
     const confColor = p.tier==='strong' ? 'var(--green)' : 'var(--blue)';
@@ -1365,7 +1371,9 @@ function renderAIPicks() {
     const dt = new Date(p.game.commence);
     const timeStr = dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
     const safeLabel = p.label.replace(/'/g,"\\'");
-
+    const sourceBadge = p.fromClaude
+      ? `<span class="claude-badge">Claude</span>`
+      : `<span class="chip chip-gray" style="font-size:10px">Model</span>`;
     return `<div class="game-card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div style="width:28px;height:28px;border-radius:50%;background:${rankColor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0d0f14;flex-shrink:0">${i+1}</div>
@@ -1373,15 +1381,16 @@ function renderAIPicks() {
           <div style="font-size:13px;font-weight:700;color:${confColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.label}</div>
           <div style="font-size:11px;color:var(--muted)">${p.game.away} vs ${p.game.home} · ${timeStr}</div>
         </div>
-        <span class="chip ${p.tier==='strong'?'chip-green':'chip-blue'}">${typeLabel[p.type]}</span>
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
+          ${sourceBadge}
+          <span class="chip ${p.tier==='strong'?'chip-green':'chip-blue'}">${typeLabel[p.type]}</span>
+        </div>
       </div>
       <div class="rec-box ${p.tier==='strong'?'rec-strong':'rec-lean'}" style="margin-bottom:10px">
         <div class="rec-text">${p.reason}</div>
         <div class="conf-row">
           <span style="font-size:11px;color:var(--muted)">Confidence</span>
-          <div class="conf-track" style="max-width:160px">
-            <div class="conf-fill" style="width:${p.conf}%;background:${confColor}"></div>
-          </div>
+          <div class="conf-track" style="max-width:160px"><div class="conf-fill" style="width:${p.conf}%;background:${confColor}"></div></div>
           <span class="conf-pct" style="font-weight:700;color:${confColor}">${p.conf}%</span>
         </div>
       </div>
@@ -1393,16 +1402,207 @@ function renderAIPicks() {
     </div>`;
   }).join('');
 
-  container.innerHTML = `
+  const headerBadge = usingClaude
+    ? `<span class="claude-badge">${topPicks.length} picks</span>`
+    : `<span class="chip chip-green">${topPicks.length} picks</span>`;
+
+  container.innerHTML = apiKeySection + settingsRow + loadingBanner + `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div>
         <div style="font-size:16px;font-weight:700">Today's AI Picks</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">Top ${topPicks.length} picks · KenPom + market model</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Top ${topPicks.length} picks · ${usingClaude ? 'Powered by Claude AI' : 'KenPom + market model'}</div>
       </div>
-      <span class="chip chip-green">${topPicks.length} picks</span>
+      ${headerBadge}
     </div>
     ${html}
     <div style="text-align:center;font-size:11px;color:var(--faint);margin-top:16px">For entertainment only. Past performance does not guarantee future results.</div>`;
+}
+
+// ─── Claude AI Integration ────────────────────────────────────────────────────
+function getClaudePick(game) {
+  const analysis = claudeAnalysisStore[game.id];
+  if (!analysis || analysis.tier === 'skip') return null;
+  const { home, away, homeML, awayML, spread, total } = game;
+  let pick, pickLabel;
+  if (analysis.spreadPick && spread !== null) {
+    const spreadAbs = Math.abs(spread);
+    if (analysis.spreadPick === 'home') {
+      pick = 'home-spread';
+      pickLabel = `${home} ${spread > 0 ? '+' : ''}${spread.toFixed(1)}`;
+    } else {
+      pick = 'away-spread';
+      pickLabel = `${away} +${spreadAbs.toFixed(1)}`;
+    }
+  } else if (analysis.mlPick === 'home') {
+    pick = 'home-ml'; pickLabel = `${home} ML`;
+  } else if (analysis.mlPick === 'away') {
+    pick = 'away-ml'; pickLabel = `${away} ML`;
+  } else {
+    return null;
+  }
+  let totalPick = null;
+  if (analysis.totalPick && total !== null) {
+    totalPick = {
+      side: analysis.totalPick,
+      conf: Math.min(analysis.confidence, 65),
+      reason: analysis.totalReason || `${analysis.totalPick === 'over' ? 'Up-tempo pace favors' : 'Defensive matchup favors'} the ${analysis.totalPick}.`
+    };
+  }
+  return { tier: analysis.tier, conf: analysis.confidence, pick, pickLabel, reason: analysis.primaryReason, totalPick, modelData: null, fromClaude: true };
+}
+
+function getActivePick(game, homeInjuries = [], awayInjuries = []) {
+  const claudePick = getClaudePick(game);
+  if (claudePick) return claudePick;
+  return genPick(game, homeInjuries, awayInjuries);
+}
+
+function getCandidatesForPicksTab(games) {
+  const candidates = [];
+  for (const game of games) {
+    const homeInj = injuriesStore[game.home] || [];
+    const awayInj = injuriesStore[game.away] || [];
+    const { id, home, away, homeML, awayML, spread, total } = game;
+    const pick = getActivePick(game, homeInj, awayInj);
+    if (!pick) continue;
+    const favIsHome = pick.pick === 'home-ml' || pick.pick === 'home-spread';
+    const isPrimarySpread = pick.pick === 'home-spread' || pick.pick === 'away-spread';
+    const primaryBetId = isPrimarySpread
+      ? (pick.pick === 'home-spread' ? id+'-h-sp' : id+'-a-sp')
+      : (pick.pick === 'home-ml'     ? id+'-h-ml' : id+'-a-ml');
+    const primaryML = isPrimarySpread ? -110 : (favIsHome ? homeML : awayML);
+    candidates.push({ betId: primaryBetId, label: pick.pickLabel, ml: primaryML,
+      conf: pick.conf, reason: pick.reason, type: isPrimarySpread ? 'spread' : 'ml',
+      tier: pick.tier, game, fromClaude: !!pick.fromClaude });
+    // Rule-based only: add ML companion when primary is spread
+    if (!pick.fromClaude && isPrimarySpread) {
+      const mlVal = favIsHome ? homeML : awayML;
+      if (mlVal >= -220) {
+        const mlBetId = favIsHome ? id+'-h-ml' : id+'-a-ml';
+        candidates.push({ betId: mlBetId, label: (favIsHome ? home : away) + ' ML', ml: mlVal,
+          conf: pick.conf, reason: pick.reason, type: 'ml', tier: pick.tier, game, fromClaude: false });
+      }
+    }
+    if (pick.totalPick && total != null) {
+      const isOver = pick.totalPick.side === 'over';
+      candidates.push({ betId: isOver ? id+'-ov' : id+'-un',
+        label: `${away} vs ${home} ${isOver ? 'Over' : 'Under'} ${total}`, ml: -110,
+        conf: pick.totalPick.conf, reason: pick.totalPick.reason, type: 'total',
+        tier: pick.totalPick.conf >= 60 ? 'strong' : 'lean', game, fromClaude: !!pick.fromClaude });
+    }
+  }
+  return candidates;
+}
+
+function buildClaudePrompt(games) {
+  const gameDescriptions = games.map(g => {
+    const homeKP = getKenPom(g.home);
+    const awayKP = getKenPom(g.away);
+    const homeInj = (injuriesStore[g.home] || []).slice(0,3).map(i => `${i.player} (${i.status})`).join(', ') || 'None';
+    const awayInj = (injuriesStore[g.away] || []).slice(0,3).map(i => `${i.player} (${i.status})`).join(', ') || 'None';
+    const dt = new Date(g.commence);
+    const timeStr = dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    let kpStr = '';
+    if (homeKP && awayKP) {
+      const awayNet = (awayKP.adjO - awayKP.adjD).toFixed(1);
+      const homeNet = (homeKP.adjO - homeKP.adjD).toFixed(1);
+      kpStr = `\n  KenPom: ${g.away} AdjO=${awayKP.adjO} AdjD=${awayKP.adjD} Tempo=${awayKP.tempo} Net=${awayNet} | ${g.home} AdjO=${homeKP.adjO} AdjD=${homeKP.adjD} Tempo=${homeKP.tempo} Net=${homeNet}`;
+    }
+    const spreadStr = g.spread != null ? `${g.home} ${g.spread > 0 ? '+' : ''}${g.spread.toFixed(1)}` : 'N/A';
+    return `ID:${g.id}  ${g.away} @ ${g.home} — ${timeStr}
+  ML: ${g.away} ${fmtML(g.awayML)} | ${g.home} ${fmtML(g.homeML)}
+  Spread: ${spreadStr} | Total: ${g.total != null ? g.total : 'N/A'}${kpStr}
+  Injuries — ${g.home}: ${homeInj} | ${g.away}: ${awayInj}`;
+  }).join('\n\n');
+
+  return `You are a sharp NCAA basketball analyst. Today is the 2026 March Madness tournament.
+
+Analyze these games and return betting recommendations. Consider:
+- KenPom efficiency margins (Net = AdjO - AdjD, higher is better overall team quality)
+- Market implied probabilities from moneylines
+- Spread value (large spreads >10 pts: tournament underdogs cover ~54%)
+- Injury impact on efficiency
+- Pace/tempo mismatches
+
+Games:
+${gameDescriptions}
+
+Respond ONLY with this exact JSON (no markdown, no other text):
+{"picks":[{"gameId":"<id>","spreadPick":"home"|"away"|null,"mlPick":"home"|"away"|null,"totalPick":"over"|"under"|null,"confidence":<50-92>,"tier":"strong"|"lean"|"skip","primaryReason":"<2-3 sentences citing specific numbers>","totalReason":"<1 sentence or null>"}]}
+
+Rules: confidence ≥75 → "strong", 58-74 → "lean", <58 → "skip". Only pick spreads OR ML (rarely both). "skip" when no genuine edge exists.`;
+}
+
+async function fetchClaudeAnalysis(games) {
+  if (!ANTHROPIC_API_KEY || !games.length) return;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 4096,
+        thinking: { type: 'adaptive' },
+        messages: [{ role: 'user', content: buildClaudePrompt(games) }]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('[Claude] API error', res.status, err.error?.message || err);
+      return;
+    }
+    const data = await res.json();
+    const textBlock = data.content?.find(b => b.type === 'text');
+    if (!textBlock?.text) { console.error('[Claude] No text block in response'); return; }
+    let parsed;
+    try {
+      const raw = textBlock.text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
+      parsed = JSON.parse(raw);
+    } catch(e) {
+      console.error('[Claude] JSON parse error:', e.message, '\nRaw:', textBlock.text.slice(0,300));
+      return;
+    }
+    for (const pick of (parsed.picks || [])) {
+      if (pick.gameId) claudeAnalysisStore[pick.gameId] = pick;
+    }
+    console.log('[Claude] Analysis loaded for', Object.keys(claudeAnalysisStore).length, 'games');
+    refreshGameCards();
+    if (currentTab === 'aipicks') renderAIPicks();
+  } catch(e) {
+    console.error('[Claude] Fetch error:', e.message);
+  }
+}
+
+function refreshGameCards() {
+  if (!gamesListStore.length) return;
+  document.getElementById('games-container').innerHTML =
+    gamesListStore.map(g => renderGameCard(g, injuriesStore[g.home] || [], injuriesStore[g.away] || [])).join('');
+}
+
+function saveApiKey() {
+  const input = document.getElementById('apikey-input');
+  const key = input?.value?.trim();
+  if (!key || !key.startsWith('sk-ant')) {
+    if (input) { input.style.borderColor = 'var(--red)'; setTimeout(() => input.style.borderColor = '', 1500); }
+    return;
+  }
+  ANTHROPIC_API_KEY = key;
+  localStorage.setItem('anthropic_api_key', key);
+  if (gamesListStore.length) fetchClaudeAnalysis(gamesListStore);
+  if (currentTab === 'aipicks') renderAIPicks();
+}
+
+function clearApiKey() {
+  ANTHROPIC_API_KEY = '';
+  localStorage.removeItem('anthropic_api_key');
+  Object.keys(claudeAnalysisStore).forEach(k => delete claudeAnalysisStore[k]);
+  refreshGameCards();
+  if (currentTab === 'aipicks') renderAIPicks();
 }
 
 function addBet(id, label, ml) {
