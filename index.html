@@ -415,6 +415,7 @@ let injuriesStore = {};
 let gamesListStore = [];
 const claudeAnalysisStore = {};
 let ANTHROPIC_API_KEY = localStorage.getItem('anthropic_api_key') || '';
+let claudeAnalysisState = 'idle'; // 'idle' | 'loading' | 'done' | 'error'
 
 // ─── KenPom-style efficiency ratings ─────────────────────────────────────────
 // AdjO: Adjusted Offensive Efficiency (pts per 100 possessions, higher = better)
@@ -1547,7 +1548,6 @@ async function fetchClaudeAnalysis(games) {
       body: JSON.stringify({
         model: 'claude-opus-4-6',
         max_tokens: 4096,
-        thinking: { type: 'adaptive' },
         messages: [{ role: 'user', content: buildClaudePrompt(games) }]
       })
     });
